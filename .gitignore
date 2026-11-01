@@ -1,0 +1,14 @@
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+.env
+.env.*
+!.env.example
+dist/
+build/
+coverage/
+
+database/literacy.db
+database/literacy.db-shm
+database/literacy.db-wal
