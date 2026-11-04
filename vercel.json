@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "api/index.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "/api/index" }
+  ],
+  "maxDuration": 30,
+  "env": {
+    "SUPABASE_URL": "@supabase-url",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key",
+    "SUPABASE_ANON_KEY": "@supabase-anon-key",
+    "JWT_SECRET": "@jwt-secret",
+    "CORS_ORIGIN": "@cors-origin",
+    "WEB_BASE_URL": "@web-base-url",
+    "RESEND_API_KEY": "@resend-api-key",
+    "EMAIL_FROM": "@email-from"
+  }
+}

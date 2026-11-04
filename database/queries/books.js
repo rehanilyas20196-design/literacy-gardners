@@ -1,194 +1,207 @@
 const { getDb } = require('../connection');
 
 const SORTS = {
-  newest: 'created_at DESC',
-  rating: 'rating DESC',
-  price_asc: 'COALESCE(sale_price, price) ASC',
-  price_desc: 'COALESCE(sale_price, price) DESC',
-  popular: 'copies_sold DESC',
-  title: 'title ASC'
+  newest: (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')),
+  rating: (a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0),
+  price_asc: (a, b) => effPrice(a) - effPrice(b),
+  price_desc: (a, b) => effPrice(b) - effPrice(a),
+  popular: (a, b) => (Number(b.copies_sold) || 0) - (Number(a.copies_sold) || 0),
+  title: (a, b) => String(a.title || '').localeCompare(String(b.title || '')),
 };
 
-function listBooks({ category = null, sort = 'newest', limit = 60 } = {}) {
-  const db = getDb();
-  const orderBy = SORTS[sort] || SORTS.newest;
-  if (category && category !== 'all') {
-    return db
-      .prepare(
-        `SELECT * FROM books WHERE is_published = 1 AND category = ? ORDER BY ${orderBy} LIMIT ?`
-      )
-      .all(category, limit);
-  }
-  return db
-    .prepare(`SELECT * FROM books WHERE is_published = 1 ORDER BY ${orderBy} LIMIT ?`)
-    .all(limit);
+function effPrice(b) {
+  const v = b.sale_price != null ? b.sale_price : b.price;
+  return Number(v) || 0;
 }
 
-function getBookById(id) {
-  const db = getDb();
-  return db.prepare('SELECT * FROM books WHERE id = ? AND is_published = 1').get(id);
+function applySort(rows, sort) {
+  const cmp = SORTS[sort] || SORTS.newest;
+  return [...rows].sort(cmp);
 }
 
-function getBookBySlug(slug) {
-  const db = getDb();
-  return db.prepare('SELECT * FROM books WHERE slug = ? AND is_published = 1').get(slug);
+function safeLike(q) {
+  return String(q).replace(/[,%_()\\]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-function getBestSellers(limit = 4) {
+async function listBooks({ category = null, sort = 'newest', limit = 60 } = {}) {
   const db = getDb();
-  return db
-    .prepare(
-      `SELECT * FROM books
-       WHERE is_published = 1 AND is_best_seller = 1
-       ORDER BY best_seller_rank ASC LIMIT ?`
-    )
-    .all(limit);
+  let query = db.from('books').select('*').eq('is_published', 1);
+  if (category && category !== 'all') query = query.eq('category', category);
+  const { data, error } = await query;
+  if (error) throw error;
+  return applySort(data || [], sort).slice(0, limit);
 }
 
-function getCategories() {
+async function getBookById(id) {
   const db = getDb();
-  return db
-    .prepare('SELECT DISTINCT category FROM books WHERE is_published = 1 ORDER BY category')
-    .all()
-    .map((r) => r.category);
+  const { data, error } = await db
+    .from('books')
+    .select('*')
+    .eq('id', id)
+    .eq('is_published', 1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
-function createBook(book) {
+async function getBookBySlug(slug) {
   const db = getDb();
-  const slug =
-    book.slug ||
-    String(book.title)
-      .toLowerCase()
-      .replace(/['’]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-  const info = db
-    .prepare(
-      `INSERT INTO books (title, slug, author_id, author_name, category, description, cover_class,
-         ornament, pages, rating, year, copies_sold, price, sale_price, stock_status, badge,
-         is_best_seller, best_seller_rank, is_published, image, back_image, template)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        book.title,
-        slug,
-        book.author_id ?? null,
-        book.author_name,
-        book.category,
-        book.description ?? null,
-        book.cover_class ?? 'c1',
-        book.ornament ?? '❀',
-        book.pages ?? 200,
-        book.rating ?? 4.5,
-        book.year ?? 2026,
-        book.copies_sold ?? 0,
-        book.price ?? 1499,
-        book.sale_price ?? null,
-        book.stock_status ?? 'in_stock',
-        book.badge ?? null,
-        book.is_best_seller ? 1 : 0,
-        book.best_seller_rank ?? null,
-        book.is_published === false ? 0 : 1,
-        book.image ?? null,
-        book.back_image ?? null,
-        book.template ?? 'hardcover'
-      );
-  return { id: Number(info.lastInsertRowid), slug, ...book };
+  const { data, error } = await db
+    .from('books')
+    .select('*')
+    .eq('slug', slug)
+    .eq('is_published', 1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
-function searchBooks(q) {
+async function getBestSellers(limit = 4) {
   const db = getDb();
-  const like = `%${q}%`;
-  return db
-    .prepare(
-      `SELECT * FROM books
-       WHERE is_published = 1 AND (title LIKE ? OR author_name LIKE ? OR category LIKE ?)
-       ORDER BY rating DESC LIMIT 25`
-    )
-    .all(like, like, like);
+  const { data, error } = await db
+    .from('books')
+    .select('*')
+    .eq('is_published', 1)
+    .eq('is_best_seller', 1)
+    .order('best_seller_rank', { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
 }
 
-// Admin: list all books including pending
-function listAllBooks({ category = null, sort = 'newest', limit = 100 } = {}) {
+async function getCategories() {
   const db = getDb();
-  const orderBy = SORTS[sort] || SORTS.newest;
-  if (category && category !== 'all') {
-    return db
-      .prepare(
-        `SELECT * FROM books WHERE category = ? ORDER BY ${orderBy} LIMIT ?`
-      )
-      .all(category, limit);
-  }
-  return db.prepare(`SELECT * FROM books ORDER BY ${orderBy} LIMIT ?`).all(limit);
+  const { data, error } = await db.from('books').select('category').eq('is_published', 1);
+  if (error) throw error;
+  const set = new Set((data || []).map((r) => r.category).filter(Boolean));
+  return [...set].sort();
 }
 
-// Admin: get book by id without published filter
-function getBookByIdAdmin(id) {
-  const db = getDb();
-  return db.prepare('SELECT * FROM books WHERE id = ?').get(id);
+function slugify(title) {
+  return String(title)
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
-// Admin: approve a book
-function approveBook(id) {
-  const db = getDb();
-  db.prepare('UPDATE books SET is_published = 1 WHERE id = ?').run(id);
-  return getBookByIdAdmin(id);
+function bookInsertPayload(book, { submittedBy = null, isPublished = null } = {}) {
+  return {
+    title: book.title,
+    slug: book.slug || slugify(book.title),
+    author_id: book.author_id ?? null,
+    author_name: book.author_name,
+    category: book.category,
+    description: book.description ?? null,
+    cover_class: book.cover_class ?? 'c1',
+    ornament: book.ornament ?? '❀',
+    pages: book.pages ?? 200,
+    rating: book.rating ?? 4.5,
+    year: book.year ?? 2026,
+    copies_sold: book.copies_sold ?? 0,
+    price: book.price ?? 1499,
+    sale_price: book.sale_price ?? null,
+    stock_status: book.stock_status ?? 'in_stock',
+    badge: book.badge ?? null,
+    is_best_seller: book.is_best_seller ? 1 : 0,
+    best_seller_rank: book.best_seller_rank ?? null,
+    is_published: isPublished != null ? isPublished : book.is_published === false || book.is_published === 0 ? 0 : 1,
+    image: book.image ?? null,
+    back_image: book.back_image ?? null,
+    template: book.template ?? 'hardcover',
+    submitted_by: submittedBy,
+  };
 }
 
-// Admin: reject/unpublish a book
-function rejectBook(id) {
+async function createBook(book) {
   const db = getDb();
-  db.prepare('UPDATE books SET is_published = 0 WHERE id = ?').run(id);
-  return getBookByIdAdmin(id);
+  const payload = bookInsertPayload(book);
+  const { data, error } = await db.from('books').insert(payload).select().single();
+  if (error) throw error;
+  return { ...payload, id: data.id };
 }
 
-// Admin: delete a book
-function deleteBook(id) {
+async function submitBook(book, submittedBy = null) {
   const db = getDb();
-  db.prepare('DELETE FROM books WHERE id = ?').run(id);
-  return { id: Number(id), deleted: true };
+  const payload = bookInsertPayload(book, { submittedBy, isPublished: 0 });
+  payload.badge = book.badge || 'Pending Review';
+  payload.copies_sold = 0;
+  const { data, error } = await db.from('books').insert(payload).select().single();
+  if (error) throw error;
+  return { ...payload, id: data.id, is_published: 0 };
 }
 
-// User: submit a book as pending
-function submitBook(book) {
+async function searchBooks(q, { category = null, sort = 'newest', limit = 25 } = {}) {
   const db = getDb();
-  const slug =
-    book.slug ||
-    String(book.title)
-      .toLowerCase()
-      .replace(/['’]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-  const info = db
-    .prepare(
-      `INSERT INTO books (title, slug, author_id, author_name, category, description, cover_class,
-         ornament, pages, rating, year, copies_sold, price, sale_price, stock_status, badge,
-         is_best_seller, best_seller_rank, is_published, image, back_image, template)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'hardcover')`
-      )
-      .run(
-        book.title,
-        slug,
-        book.author_id ?? null,
-        book.author_name,
-        book.category,
-        book.description ?? null,
-        book.cover_class ?? 'c1',
-        book.ornament ?? '❀',
-        book.pages ?? 200,
-        book.rating ?? 4.5,
-        book.year ?? 2026,
-        book.copies_sold ?? 0,
-        book.price ?? 1499,
-        book.sale_price ?? null,
-        book.stock_status ?? 'in_stock',
-        book.badge ?? null,
-        book.is_best_seller ? 1 : 0,
-        book.best_seller_rank ?? null,
-        book.image ?? null,
-        book.back_image ?? null
-      );
-  return { id: Number(info.lastInsertRowid), slug, ...book, is_published: 0 };
+  const term = safeLike(q);
+  if (!term) return [];
+  let query = db
+    .from('books')
+    .select('*')
+    .eq('is_published', 1)
+    .or(`title.ilike.%${term}%,author_name.ilike.%${term}%,category.ilike.%${term}%`);
+  if (category && category !== 'all') query = query.eq('category', category);
+  const { data, error } = await query;
+  if (error) throw error;
+  return applySort(data || [], sort).slice(0, limit);
+}
+
+async function listAllBooks({ category = null, sort = 'newest', limit = 100 } = {}) {
+  const db = getDb();
+  let query = db.from('books').select('*');
+  if (category && category !== 'all') query = query.eq('category', category);
+  const { data, error } = await query;
+  if (error) throw error;
+  return applySort(data || [], sort).slice(0, limit);
+}
+
+async function getBookByIdAdmin(id) {
+  const db = getDb();
+  const { data, error } = await db.from('books').select('*').eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function listBooksByUser(userId) {
+  const db = getDb();
+  const { data, error } = await db
+    .from('books')
+    .select('*')
+    .eq('submitted_by', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+async function updateBook(id, fields) {
+  const db = getDb();
+  const { data, error } = await db
+    .from('books')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function approveBook(id) {
+  return updateBook(id, { is_published: 1 });
+}
+
+async function rejectBook(id) {
+  return updateBook(id, { is_published: 0 });
+}
+
+async function deleteBook(id) {
+  const db = getDb();
+  const { error } = await db.from('books').delete().eq('id', id);
+  if (error) throw error;
+  return { id, deleted: true };
+}
+
+function isUniqueError(err) {
+  return Boolean(err && (err.code === '23505' || /duplicate key|unique/i.test(err.message || '')));
 }
 
 module.exports = {
@@ -198,11 +211,15 @@ module.exports = {
   getBestSellers,
   getCategories,
   createBook,
+  submitBook,
   searchBooks,
   listAllBooks,
   getBookByIdAdmin,
+  listBooksByUser,
+  updateBook,
   approveBook,
   rejectBook,
   deleteBook,
-  submitBook
+  slugify,
+  isUniqueError,
 };

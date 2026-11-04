@@ -9,6 +9,10 @@ dist/
 build/
 coverage/
 
+.vercel/
+
 database/literacy.db
 database/literacy.db-shm
 database/literacy.db-wal
+.vercel
+.env*

@@ -6,21 +6,23 @@ import { formatPKR } from '@/lib/covers';
 import Book3D, { templateForBook } from '@/components/Book3D';
 
 export function StarRating({ rating }) {
-  const full = Math.floor(Number(rating) || 0);
+  const value = Number(rating);
+  const safe = Number.isFinite(value) ? Math.min(5, Math.max(0, value)) : 0;
+  const full = Math.floor(safe);
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-ink/60" aria-label={`${rating} out of 5`}>
+    <span className="inline-flex items-center gap-1 text-xs text-ink/60" aria-label={`${safe} out of 5`}>
       <span className="text-primary tracking-tight" aria-hidden="true">
         {'★'.repeat(full)}
         {'☆'.repeat(Math.max(0, 5 - full))}
       </span>
-      <span className="font-mono text-[11px]">{Number(rating).toFixed(2)}</span>
+      <span className="font-mono text-[11px]">{safe.toFixed(2)}</span>
     </span>
   );
 }
 
 export default function ProductCard({ book }) {
   const { addItem, wishlist, toggleWishlist } = useCart();
-  const wished = wishlist.includes(book.id);
+  const wished = wishlist.includes(book?.id);
   const soldOut = book.stock_status === 'sold_out';
   const onSale = book.sale_price != null;
 

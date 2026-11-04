@@ -1,5 +1,12 @@
 const bcrypt = require('bcryptjs');
-const { getDb } = require('../../database/connection');
+const {
+  getUserByEmail,
+  getUserByNameOrEmail,
+  getUserById,
+  createUser: insertUser,
+  listUsers: queryUsers,
+  isUniqueError,
+} = require('../../database/queries/users');
 
 function hashPassword(password) {
   return bcrypt.hash(password, 12);
@@ -10,9 +17,8 @@ function comparePassword(plain, hash) {
 }
 
 async function createUser({ name, email, password, role = 'user' }) {
-  const existing = getDb()
-    .prepare('SELECT id FROM users WHERE email = ?')
-    .get(email);
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const existing = await getUserByEmail(normalizedEmail);
   if (existing) {
     const err = new Error('Email already registered');
     err.status = 409;
@@ -20,24 +26,32 @@ async function createUser({ name, email, password, role = 'user' }) {
   }
 
   const passwordHash = await hashPassword(password);
-  const info = getDb()
-    .prepare(
-      'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)'
-    )
-    .run(name, email, passwordHash, role);
-
-  return {
-    id: Number(info.lastInsertRowid),
-    name,
-    email,
-    role,
-  };
+  try {
+    return await insertUser({
+      name: String(name).trim(),
+      email: normalizedEmail,
+      passwordHash,
+      role,
+    });
+  } catch (err) {
+    if (isUniqueError(err)) {
+      const conflict = new Error('Email already registered');
+      conflict.status = 409;
+      throw conflict;
+    }
+    throw err;
+  }
 }
 
 async function authenticateUser(login, password) {
-  const user = getDb()
-    .prepare('SELECT * FROM users WHERE email = ? OR name = ?')
-    .get(login, login);
+  const identifier = String(login).trim();
+  let user = null;
+  if (identifier.includes('@')) {
+    user = await getUserByEmail(identifier.toLowerCase());
+  }
+  if (!user) {
+    user = await getUserByNameOrEmail(identifier);
+  }
   if (!user) {
     const err = new Error('Invalid credentials');
     err.status = 401;
@@ -56,17 +70,27 @@ async function authenticateUser(login, password) {
     name: user.name,
     email: user.email,
     role: user.role,
+    token_version: user.token_version ?? 0,
   };
 }
 
-function listUsers() {
-  return getDb()
-    .prepare('SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC')
-    .all();
+async function listUsers() {
+  return queryUsers();
 }
 
-function getUserById(id) {
-  return getDb().prepare('SELECT id, name, email, role, created_at FROM users WHERE id = ?').get(id);
+async function getUserPublic(id) {
+  const user = await getUserById(id);
+  if (!user) return null;
+  const { id: uid, name, email, role, created_at } = user;
+  return { id: uid, name, email, role, created_at };
 }
 
-module.exports = { hashPassword, comparePassword, createUser, authenticateUser, listUsers, getUserById };
+module.exports = {
+  hashPassword,
+  comparePassword,
+  createUser,
+  authenticateUser,
+  listUsers,
+  getUserPublic,
+  getUserById,
+};

@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { api } from '@/lib/api';
+import { api, getToken } from '@/lib/api';
 import { formatPKR } from '@/lib/covers';
 import { useCart } from '@/context/CartContext';
 import { StarRating } from '@/components/ProductCard';
@@ -23,12 +23,6 @@ const BOOK_INFO = [
   ['Publisher', 'Literacy Gardeners']
 ];
 
-const SAMPLE_REVIEWS = [
-  { id: 1, name: 'Hira Malik', rating: 5, date: '12 Oct 2026', text: 'A beautifully produced book — the cover, paper and binding feel premium, and the story stayed with me for days.' },
-  { id: 2, name: 'Daniyal A.', rating: 5, date: '28 Sep 2026', text: 'You can tell the young writers were mentored closely here. Tight editing, honest voice, and the A5 size is perfect for commuting.' },
-  { id: 3, name: 'Farah N.', rating: 4, date: '03 Oct 2026', text: 'Quick delivery and lovely cream paper. I finished it in one sitting — looking forward to the next release.' }
-];
-
 function Stars({ n, className = '' }) {
   const full = Math.round(Number(n) || 0);
   return (
@@ -44,11 +38,17 @@ export default function BookDetailPage({ params }) {
   const [book, setBook] = useState(null);
   const [related, setRelated] = useState([]);
   const [err, setErr] = useState(false);
-  const [reviews, setReviews] = useState(SAMPLE_REVIEWS);
+  const [reviews, setReviews] = useState([]);
+  const [reviewStats, setReviewStats] = useState(null);
+  const [myReview, setMyReview] = useState(null);
+  const [canReview, setCanReview] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [fName, setFName] = useState('');
+  const [fTitle, setFTitle] = useState('');
   const [fText, setFText] = useState('');
   const [fRating, setFRating] = useState(5);
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [reviewNotice, setReviewNotice] = useState('');
   const { addItem, wishlist, toggleWishlist } = useCart();
 
   useEffect(() => {
@@ -58,6 +58,26 @@ export default function BookDetailPage({ params }) {
         const b = await api.getBookBySlug(slug);
         if (!alive) return;
         setBook(b);
+
+        api
+          .getBookReviews(b.id)
+          .then((data) => {
+            if (!alive) return;
+            setReviews(data.reviews || []);
+            setReviewStats(data.stats || null);
+          })
+          .catch(() => {});
+
+        if (getToken()) {
+          setCanReview(true);
+          api
+            .getMyReview(b.id)
+            .then((res) => {
+              if (alive) setMyReview(res.review || null);
+            })
+            .catch(() => {});
+        }
+
         const all = await api.getBooks({ category: b.category });
         if (alive) setRelated(all.filter((x) => x.id !== b.id).slice(0, 4));
       } catch {
@@ -86,25 +106,37 @@ export default function BookDetailPage({ params }) {
 
   const soldOut = book.stock_status === 'sold_out';
   const wished = wishlist.includes(book.id);
+  const ratingAverage = Number(reviewStats?.average ?? book.rating ?? 0) || 0;
 
-  function submitReview(e) {
+  async function submitReview(e) {
     e.preventDefault();
-    if (!fName.trim() || !fText.trim()) return;
-    setReviews((prev) => [
-      {
-        id: Date.now(),
-        name: fName.trim(),
+    setReviewError('');
+    setReviewNotice('');
+    if (!fText.trim()) {
+      setReviewError('Please write your review before submitting.');
+      return;
+    }
+    setReviewBusy(true);
+    try {
+      const res = await api.postReview(book.id, {
         rating: fRating,
-        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-        text: fText.trim()
-      },
-      ...prev
-    ]);
-    setFName('');
-    setFText('');
-    setFRating(5);
-    setShowForm(false);
-    window.dispatchEvent(new CustomEvent('lg-toast', { detail: 'Thanks! Your review has been submitted.' }));
+        title: fTitle.trim() || null,
+        body: fText.trim(),
+      });
+      setMyReview(res.review || null);
+      setReviewNotice(
+        'Thanks! Your review is awaiting moderation and will appear here once approved.'
+      );
+      setFTitle('');
+      setFText('');
+      setFRating(5);
+      setShowForm(false);
+      window.dispatchEvent(new CustomEvent('lg-toast', { detail: 'Review submitted for approval.' }));
+    } catch (err) {
+      setReviewError(err.message || 'Could not submit your review');
+    } finally {
+      setReviewBusy(false);
+    }
   }
 
   return (
@@ -206,28 +238,50 @@ export default function BookDetailPage({ params }) {
             <p className="font-mono text-[11px] tracking-[0.1em] uppercase text-primary mb-3">What readers say</p>
             <h2 className="font-display text-2xl font-bold tracking-tight">Reader Reviews</h2>
             <div className="mt-2 flex items-center gap-2 text-sm text-ink/60">
-              <Stars n={book.rating} />
-              <span className="font-mono text-xs">{Number(book.rating).toFixed(2)} · {reviews.length} review{reviews.length === 1 ? '' : 's'}</span>
+              <Stars n={reviewStats?.average ?? book.rating} />
+              <span className="font-mono text-xs">
+                {ratingAverage.toFixed(2)} · {reviewStats?.count ?? reviews.length} review
+                {(reviewStats?.count ?? reviews.length) === 1 ? '' : 's'}
+              </span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowForm((v) => !v)}
-            className="rounded-md bg-ink text-white text-sm font-medium px-[18px] py-[12px] hover:bg-primary transition-colors"
-            aria-expanded={showForm}
-          >
-            Your Review
-          </button>
+          {canReview ? (
+            <button
+              type="button"
+              onClick={() => setShowForm((v) => !v)}
+              className="rounded-md bg-ink text-white text-sm font-medium px-[18px] py-[12px] hover:bg-primary transition-colors"
+              aria-expanded={showForm}
+            >
+              {myReview ? 'Edit your review' : 'Write a review'}
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-md border border-border bg-surface text-sm font-medium px-[18px] py-[12px] hover:border-ink transition-colors"
+            >
+              Sign in to review
+            </Link>
+          )}
         </div>
 
-        {showForm && (
+        {myReview && (
+          <p className="mt-4 text-sm text-ink/60">
+            Your review is{' '}
+            <span className="font-semibold text-ink">{myReview.status}</span>
+            {myReview.status === 'approved' ? ' and visible below.' : ' — it appears here once an admin approves it.'}
+          </p>
+        )}
+        {reviewNotice && (
+          <p role="status" className="mt-4 text-sm text-primary">{reviewNotice}</p>
+        )}
+
+        {showForm && canReview && (
           <form onSubmit={submitReview} className="mt-6 border border-border rounded-lg bg-muted p-5 grid gap-3 sm:grid-cols-2">
             <input
               type="text"
-              value={fName}
-              onChange={(e) => setFName(e.target.value)}
-              placeholder="Your name"
-              required
+              value={fTitle}
+              onChange={(e) => setFTitle(e.target.value)}
+              placeholder="Review title (optional)"
               className="rounded-full border border-border bg-surface px-[18px] py-[10px] text-sm outline-none focus:border-ink transition-colors"
             />
             <div className="flex items-center gap-1 sm:justify-end" role="radiogroup" aria-label="Your rating">
@@ -253,12 +307,18 @@ export default function BookDetailPage({ params }) {
               rows={4}
               className="sm:col-span-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm outline-none focus:border-ink transition-colors resize-y"
             />
+            {reviewError && (
+              <p role="alert" className="sm:col-span-2 text-sm text-error">{reviewError}</p>
+            )}
             <div className="sm:col-span-2 flex flex-wrap gap-3">
               <button
                 type="submit"
-                className="rounded-md bg-ink text-white text-sm font-medium px-[18px] py-[10px] hover:bg-primary transition-colors"
+                disabled={reviewBusy}
+                className={`rounded-md text-sm font-medium px-[18px] py-[10px] transition-colors ${
+                  reviewBusy ? 'bg-muted text-ink/40 cursor-wait' : 'bg-ink text-white hover:bg-primary'
+                }`}
               >
-                Submit review
+                {reviewBusy ? 'Submitting…' : 'Submit review'}
               </button>
               <button
                 type="button"
@@ -271,18 +331,37 @@ export default function BookDetailPage({ params }) {
           </form>
         )}
 
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {reviews.map((r) => (
-            <article key={r.id} className="border border-border rounded-lg bg-surface p-5">
-              <div className="flex items-center justify-between gap-3">
-                <Stars n={r.rating} className="text-base" />
-                <span className="font-mono text-[11px] text-ink/40">{r.date}</span>
-              </div>
-              <p className="mt-3 text-sm leading-relaxed text-ink/70">{r.text}</p>
-              <p className="mt-4 pt-3 border-t border-border/70 text-sm font-semibold">{r.name}</p>
-            </article>
-          ))}
-        </div>
+        {reviewError && !showForm && (
+          <p role="alert" className="mt-4 text-sm text-error">{reviewError}</p>
+        )}
+
+        {reviews.length === 0 ? (
+          <p className="mt-8 rounded-lg border border-border bg-muted/50 px-5 py-8 text-center text-sm text-ink/50">
+            No approved reviews yet — be the first to share your thoughts.
+          </p>
+        ) : (
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {reviews.map((r) => (
+              <article key={r.id} className="border border-border rounded-lg bg-surface p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <Stars n={r.rating} className="text-base" />
+                  <span className="font-mono text-[11px] text-ink/40">
+                    {new Date(r.created_at).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric'
+                    })}
+                  </span>
+                </div>
+                {r.title && <p className="mt-3 text-sm font-semibold text-ink">{r.title}</p>}
+                <p className="mt-2 text-sm leading-relaxed text-ink/70">{r.body}</p>
+                <p className="mt-4 pt-3 border-t border-border/70 text-sm font-semibold">
+                  {r.user_name || 'Reader'}
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       {related.length > 0 && (

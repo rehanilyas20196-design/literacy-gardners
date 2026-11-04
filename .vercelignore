@@ -1,0 +1,14 @@
+frontend/
+backend/node_modules/
+node_modules/
+.env
+.env.*
+!.env.example
+.next/
+dist/
+build/
+coverage/
+database/literacy.db
+database/literacy.db-shm
+database/literacy.db-wal
+.vercel/

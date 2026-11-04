@@ -26,8 +26,8 @@ export default function SignupPage() {
       setError('Please enter a valid email address.');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
       return;
     }
     if (!agree) {
@@ -36,8 +36,10 @@ export default function SignupPage() {
     }
     setBusy(true);
     try {
-      await api.register({ name: name.trim(), email, password });
-      router.push('/login');
+      const result = await api.register({ name: name.trim(), email, password });
+      // register() stores the returned token — go straight into the app
+      if (result && result.token) router.push('/');
+      else router.push('/login');
     } catch (err) {
       setError(err.message || 'Signup failed');
     } finally {
@@ -96,7 +98,7 @@ export default function SignupPage() {
                   type={showPw ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
+                  placeholder="At least 8 characters"
                   autoComplete="new-password"
                   className="w-full rounded-full border border-border bg-surface px-[18px] pr-14 py-[11px] text-sm outline-none focus:border-ink transition-colors"
                 />

@@ -1,24 +1,18 @@
-const { DatabaseSync } = require('node:sqlite');
-const fs = require('node:fs');
-const path = require('node:path');
+const { createClient } = require('@supabase/supabase-js');
 
-let db = null;
+let client = null;
 
 function getDb() {
-  if (db) return db;
-  const file = process.env.DB_FILE || path.join(__dirname, 'literacy.db');
-  db = new DatabaseSync(file);
-  db.exec('PRAGMA journal_mode = WAL;');
-  db.exec('PRAGMA foreign_keys = ON;');
-  const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
-  db.exec(schema);
-  try {
-    const { ensureColumns } = require('./seed');
-    ensureColumns();
-  } catch {
-    /* seed may not be loaded in query-only contexts */
+  if (client) return client;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables');
   }
-  return db;
+  client = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return client;
 }
 
 module.exports = { getDb };

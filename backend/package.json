@@ -6,11 +6,13 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "seed": "node -e \"require('../database/seed').seedIfEmpty(); console.log('seeded')\""
+    "seed": "node -e \"console.log('Seed data lives in database/supabase_schema.sql — run it in the Supabase SQL Editor')\""
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^8.7.2",
     "express-validator": "^7.3.2",

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { coverDataURL } from '@/lib/covers';
 import BookShowcase3D from '@/components/BookShowcase3D';
 import ProductCard from '@/components/ProductCard';
 import Reveal from '@/components/Reveal';
@@ -12,7 +11,7 @@ const FALLBACK = [
   {
     id: 1,
     title: 'Death Before Breakfast',
-    slug: 'the-imposters-mirror',
+    slug: 'death-before-breakfast',
     author_name: 'George Bellairs',
     category: 'Mystery & Crime',
     image: '/images/animationimages/3.jfif',
@@ -34,7 +33,7 @@ const FALLBACK = [
   {
     id: 2,
     title: 'The Beauty Within',
-    slug: 'the-invisible-me',
+    slug: 'the-beauty-within',
     author_name: 'Samantha Donald',
     category: 'Poetry & Reflection',
     image: '/images/animationimages/5.png',
@@ -56,7 +55,7 @@ const FALLBACK = [
   {
     id: 3,
     title: 'Of Witches and Cows',
-    slug: 'the-paper-kingdom',
+    slug: 'of-witches-and-cows',
     author_name: 'L.R. Bakker',
     category: 'Fantasy Adventure',
     image: '/images/animationimages/6.jfif',
@@ -78,7 +77,7 @@ const FALLBACK = [
   {
     id: 4,
     title: 'The Raven King',
-    slug: 'after-the-long-night',
+    slug: 'the-raven-king',
     author_name: 'Maggie Stiefvater',
     category: 'YA Fantasy',
     image: '/images/animationimages/7.jfif',
@@ -100,7 +99,7 @@ const FALLBACK = [
   {
     id: 5,
     title: 'Who Am I?',
-    slug: 'the-fracture-of-time',
+    slug: 'who-am-i',
     author_name: 'Michelle Rice-Gauvreau',
     category: 'Memoir & True Story',
     image: '/images/animationimages/9.jpg',
@@ -122,7 +121,7 @@ const FALLBACK = [
   {
     id: 6,
     title: 'Create Your Own Business',
-    slug: 'seeds-of-the-untold',
+    slug: 'create-your-own-business',
     author_name: 'James Murdor',
     category: 'Leadership & Guide',
     image: '/images/animationimages/10.jpg',
@@ -159,39 +158,50 @@ const STATS = [
 
 const TRUST = ['City School', 'Beaconhouse', 'LUMS Soc', 'Writers Guild', 'Indus Press', 'Young Pen'];
 
+const COLORS = [
+  { accent: '#9f1239', spine: '#4c0519' },
+  { accent: '#1d4ed8', spine: '#172554' },
+  { accent: '#0284c7', spine: '#082f49' },
+  { accent: '#4f46e5', spine: '#1e1b4b' },
+  { accent: '#d97706', spine: '#451a03' },
+  { accent: '#334155', spine: '#0f172a' },
+];
+
+// Only these cover images actually exist in /public/images/animationimages —
+// the old `idx % 8 + 3` formula produced 404s for 4/8.
+const FALLBACK_IMAGES = [
+  '/images/animationimages/3.jfif',
+  '/images/animationimages/5.png',
+  '/images/animationimages/6.jfif',
+  '/images/animationimages/7.jfif',
+  '/images/animationimages/9.jpg',
+  '/images/animationimages/10.jpg',
+];
+
+function mapToShowcase(book, idx) {
+  const c = COLORS[idx % COLORS.length];
+  return {
+    id: book.id,
+    title: book.title,
+    author: book.author_name,
+    role: book.badge || 'Young Author',
+    category: book.category,
+    badge: book.badge || 'New',
+    year: String(book.year ?? ''),
+    pages: book.pages,
+    rating: book.rating,
+    description: book.description,
+    image: book.image || FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length],
+    accentColor: c.accent,
+    spineColor: c.spine,
+    slug: book.slug,
+  };
+}
+
 export default function HomePage() {
   const [best, setBest] = useState([]);
   const [showcaseBooks, setShowcaseBooks] = useState([]);
   const [loaded, setLoaded] = useState(false);
-
-  const COLORS = [
-    { accent: '#9f1239', spine: '#4c0519' },
-    { accent: '#1d4ed8', spine: '#172554' },
-    { accent: '#0284c7', spine: '#082f49' },
-    { accent: '#4f46e5', spine: '#1e1b4b' },
-    { accent: '#d97706', spine: '#451a03' },
-    { accent: '#334155', spine: '#0f172a' },
-  ];
-
-  function mapToShowcase(book, idx) {
-    const c = COLORS[idx % COLORS.length];
-    return {
-      id: book.id,
-      title: book.title,
-      author: book.author_name,
-      role: book.badge || 'Young Author',
-      category: book.category,
-      badge: book.badge || 'New',
-      year: String(book.year),
-      pages: book.pages,
-      rating: book.rating,
-      description: book.description,
-      image: book.image || `/images/animationimages/${(idx % 8) + 3}.jfif`,
-      accentColor: c.accent,
-      spineColor: c.spine,
-      slug: book.slug,
-    };
-  }
 
   useEffect(() => {
     let alive = true;

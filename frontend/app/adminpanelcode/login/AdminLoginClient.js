@@ -8,7 +8,7 @@ import Reveal from '@/components/Reveal';
 
 export default function AdminLoginClient() {
   const router = useRouter();
-  const [form, setForm] = useState({ username: 'admin', password: 'admin' });
+  const [form, setForm] = useState({ username: '', password: '' });
   const [state, setState] = useState('idle');
   const [error, setError] = useState('');
 
@@ -89,9 +89,6 @@ export default function AdminLoginClient() {
             >
               {state === 'sending' ? 'Signing in…' : 'Sign In'}
             </button>
-            <p className="text-xs text-ink/45 text-center font-mono mt-4">
-              Default: admin / admin
-            </p>
           </form>
 
           <div className="mt-8 text-center border-t border-border pt-6">

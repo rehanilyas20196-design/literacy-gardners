@@ -1,0 +1,3 @@
+# Placeholder so Vercel's builder has an output directory for the API project.
+# The site itself is deployed as the separate "literacy-gardeners-web" project;
+# every request to this project is rewritten to api/index.js by vercel.json.

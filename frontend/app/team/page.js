@@ -55,10 +55,10 @@ export default function TeamPage() {
                 <div className="card p-6 flex flex-col h-full">
                   <div className="relative mb-4">
                     <div className="w-20 h-20 mx-auto rounded-full bg-ink text-white grid place-items-center font-display text-3xl font-bold shadow-lg shadow-ink/10 group-hover:shadow-ink/20 transition-shadow duration-300">
-                      {m.initial}
+                      {m.initial || String(m.name || '?').charAt(0)}
                     </div>
                     <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 inline-block px-2 py-0.5 rounded-full bg-primary text-white text-[10px] font-mono font-semibold tracking-wider uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      {m.role.split('·')[0].trim()}
+                      {String(m.role || 'Team').split('·')[0].trim()}
                     </span>
                   </div>
                   <h2 className="text-base font-semibold text-ink text-center leading-tight">{m.name}</h2>

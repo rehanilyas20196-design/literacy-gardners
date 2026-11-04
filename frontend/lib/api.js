@@ -2,14 +2,27 @@ const BASE = '/api';
 const TOKEN_KEY = 'lg_auth_token';
 
 function getToken() {
-  if (typeof localStorage === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
+  if (typeof window === 'undefined') return null;
+  return window.sessionStorage.getItem(TOKEN_KEY) || window.localStorage.getItem(TOKEN_KEY);
 }
 
-function setToken(token) {
-  if (typeof localStorage === 'undefined') return;
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+function setToken(token, persist = true) {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    if (persist) window.localStorage.setItem(TOKEN_KEY, token);
+    else window.sessionStorage.setItem(TOKEN_KEY, token);
+  } else {
+    window.localStorage.removeItem(TOKEN_KEY);
+    window.sessionStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+async function parseError(res) {
+  const body = await res.json().catch(() => ({}));
+  const err = new Error(body.error || `Request failed: ${res.status}`);
+  err.status = res.status;
+  err.details = body.details;
+  return err;
 }
 
 async function request(path, options = {}) {
@@ -23,14 +36,17 @@ async function request(path, options = {}) {
   });
 
   if (res.status === 401) {
-    setToken(null);
-    throw new Error('Session expired — please log in again.');
+    // Only wipe the session if this request actually presented a token —
+    // a failed login must not clear a valid session.
+    if (token) setToken(null);
+    const err = await parseError(res);
+    if (token && /authorization|token/i.test(err.message)) {
+      err.message = 'Session expired — please log in again.';
+    }
+    throw err;
   }
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Request failed: ${res.status}`);
-  }
+  if (!res.ok) throw await parseError(res);
   return res.json();
 }
 
@@ -46,14 +62,15 @@ async function requestForm(path, body, options = {}) {
   });
 
   if (res.status === 401) {
-    setToken(null);
-    throw new Error('Session expired — please log in again.');
+    if (token) setToken(null);
+    const err = await parseError(res);
+    if (token && /authorization|token/i.test(err.message)) {
+      err.message = 'Session expired — please log in again.';
+    }
+    throw err;
   }
 
-  if (!res.ok) {
-    const b = await res.json().catch(() => ({}));
-    throw new Error(b.error || `Request failed: ${res.status}`);
-  }
+  if (!res.ok) throw await parseError(res);
   return res.json();
 }
 
@@ -67,37 +84,79 @@ export const api = {
     return request(`/books${s ? `?${s}` : ''}`);
   },
   getBookBySlug: (slug) => request(`/books/slug/${encodeURIComponent(slug)}`),
+  getBookById: (id) => request(`/books/${encodeURIComponent(id)}`),
   getBestSellers: (limit = 4) => request(`/books/best-sellers?limit=${limit}`),
   getCategories: () => request('/books/categories'),
   getTeam: () => request('/team'),
+  getAuthors: () => request('/team/authors'),
   getCompetitions: () => request('/competitions'),
   submitLead: (lead) => request('/leads', { method: 'POST', body: JSON.stringify(lead) }),
   subscribe: (email) => request('/newsletter', { method: 'POST', body: JSON.stringify({ email }) }),
 
   // Auth
-  register: (data) => request('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
-  login: (data) => {
+  register: (data, persist = true) => {
+    return request('/auth/register', { method: 'POST', body: JSON.stringify(data) }).then((result) => {
+      if (result.token) setToken(result.token, persist);
+      return result;
+    });
+  },
+  login: (data, persist = true) => {
     return request('/auth/login', { method: 'POST', body: JSON.stringify(data) }).then((result) => {
-      if (result.token) setToken(result.token);
+      if (result.token) setToken(result.token, persist);
       return result;
     });
   },
   logout: () => {
     setToken(null);
   },
+  logoutAll: () => request('/auth/logout-all', { method: 'POST' }),
   getMe: () => request('/auth/me'),
+  forgotPassword: (email) =>
+    request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  resetPassword: (token, password) =>
+    request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
+  registerAuthor: (data) =>
+    request('/auth/register-author', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Books — user submissions (JSON)
+  getMyBooks: () => request('/books/mine'),
+  submitBook: (data) => request('/books/submit', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Reviews
+  getBookReviews: (id) => request(`/books/${encodeURIComponent(id)}/reviews`),
+  getMyReview: (id) => request(`/books/${encodeURIComponent(id)}/reviews/mine`),
+  postReview: (id, data) =>
+    request(`/books/${encodeURIComponent(id)}/reviews`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Publishing request (Get Published)
+  submitQuote: (data) => request('/quotes', { method: 'POST', body: JSON.stringify(data) }),
+
+  // File uploads → Supabase Storage
+  uploadFile: (file, kind = 'cover') => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return requestForm(`/uploads?kind=${encodeURIComponent(kind)}`, fd);
+  },
+
+  // Checkout
+  createOrder: (data) => request('/orders', { method: 'POST', body: JSON.stringify(data) }),
+  getMyOrders: () => request('/orders/mine'),
 
   // Admin
   getUsers: () => request('/adminpanelcode/users'),
   deleteUser: (id) => request(`/adminpanelcode/users/${id}`, { method: 'DELETE' }),
   updateUserRole: (id, role) =>
     request(`/adminpanelcode/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
-  getAuthors: () => request('/adminpanelcode/authors'),
+  getAdminAuthors: () => request('/adminpanelcode/authors'),
   createAuthor: (data) => request('/adminpanelcode/authors', { method: 'POST', body: JSON.stringify(data) }),
   updateAuthor: (id, data) =>
     request(`/adminpanelcode/authors/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteAuthor: (id) => request(`/adminpanelcode/authors/${id}`, { method: 'DELETE' }),
   getQuotes: (status) => request(`/adminpanelcode/quotes${status ? `?status=${status}` : ''}`),
+  getQuoteFiles: (id) => request(`/adminpanelcode/quotes/${encodeURIComponent(id)}/files`),
   updateQuoteStatus: (id, status) =>
     request(`/adminpanelcode/quotes/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   deleteQuote: (id) => request(`/adminpanelcode/quotes/${id}`, { method: 'DELETE' }),
@@ -108,8 +167,7 @@ export const api = {
   deleteBook: (id) => request(`/adminpanelcode/books/${id}`, { method: 'DELETE' }),
   createAdminBook: (data) =>
     request('/adminpanelcode/books', { method: 'POST', body: JSON.stringify(data) }),
-  createAdminBookForm: (formData) =>
-    requestForm('/adminpanelcode/books', formData),
+  createAdminBookForm: (formData) => requestForm('/adminpanelcode/books', formData),
   updateAdminBook: (id, data) =>
     request(`/adminpanelcode/books/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   updateAdminBookForm: (id, formData) =>
@@ -121,8 +179,25 @@ export const api = {
   getNewsletter: () => request('/adminpanelcode/newsletter'),
   deleteSubscriber: (id) => request(`/adminpanelcode/newsletter/${id}`, { method: 'DELETE' }),
 
-  // User book submission
-  submitBook: (formData) => requestForm('/books/submit', formData),
+  // Admin — reviews
+  getReviews: (status) => request(`/adminpanelcode/reviews${status ? `?status=${status}` : ''}`),
+  updateReviewStatus: (id, status) =>
+    request(`/adminpanelcode/reviews/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  deleteReview: (id) => request(`/adminpanelcode/reviews/${id}`, { method: 'DELETE' }),
+
+  // Admin — orders
+  getOrders: (status) => request(`/adminpanelcode/orders${status ? `?status=${status}` : ''}`),
+  updateOrderStatus: (id, status) =>
+    request(`/adminpanelcode/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+
+  // Admin — author applications
+  getAuthorApplications: (status) =>
+    request(`/adminpanelcode/author-applications${status ? `?status=${status}` : ''}`),
+  decideAuthorApplication: (id, status) =>
+    request(`/adminpanelcode/author-applications/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
 };
 
 export { getToken, setToken };

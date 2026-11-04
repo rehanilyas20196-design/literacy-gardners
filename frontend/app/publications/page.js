@@ -50,6 +50,17 @@ function PublicationsInner() {
   const [rawPriceRange, setRawPriceRange] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Re-apply URL filters on same-route navigation (e.g. footer "Best Sellers").
+  const urlCategory = searchParams.get('category') || 'All';
+  const urlSort = searchParams.get('sort') || 'newest';
+  const urlKey = `${urlCategory}|${urlSort}`;
+  const [lastUrlKey, setLastUrlKey] = useState(urlKey);
+  if (urlKey !== lastUrlKey) {
+    setLastUrlKey(urlKey);
+    if (urlCategory !== category) setCategory(urlCategory);
+    if (urlSort !== sort) setSort(urlSort);
+  }
+
   useEffect(() => {
     let alive = true;
     (async () => {

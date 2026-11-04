@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { formatPKR } from '@/lib/covers';
 
 export default function CartDrawer() {
+  const router = useRouter();
   const { items, drawerOpen, setDrawerOpen, removeItem, setQty, subtotal, clearCart, hydrated } = useCart();
 
   return (
@@ -71,7 +73,9 @@ export default function CartDrawer() {
                           +
                         </button>
                       </div>
-                      <span className="text-sm font-semibold">{formatPKR(item.price * item.qty)}</span>
+                      <span className="text-sm font-semibold">
+                        {formatPKR((Number(item.price) || 0) * (Number(item.qty) || 0))}
+                      </span>
                     </div>
                     <button
                       type="button"
@@ -96,7 +100,10 @@ export default function CartDrawer() {
             <button
               type="button"
               className="w-full rounded-md bg-ink text-white text-sm font-medium py-3 hover:bg-primary transition-colors"
-              onClick={() => window.dispatchEvent(new CustomEvent('lg-toast', { detail: 'Checkout coming soon.' }))}
+              onClick={() => {
+                setDrawerOpen(false);
+                router.push('/checkout');
+              }}
             >
               Checkout
             </button>

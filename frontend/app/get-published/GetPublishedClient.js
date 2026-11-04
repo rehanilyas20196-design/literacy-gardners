@@ -41,13 +41,47 @@ export default function GetPublishedClient() {
   const [extraCopies, setExtraCopies] = useState(0);
 
   const [form, setForm] = useState({
-    name: '', email: '', phone: '', bookTitle: '', manuscript: '', notes: '',
+    name: '', email: '', phone: '', bookTitle: '', notes: '',
   });
   const [file, setFile] = useState(null);
   const [frontCover, setFrontCover] = useState(null);
   const [backCover, setBackCover] = useState(null);
   const [state, setState] = useState('idle');
   const [error, setError] = useState('');
+
+  const MANUSCRIPT_EXT = ['.pdf', '.doc', '.docx'];
+  const COVER_EXT = ['.jpg', '.jpeg', '.png', '.webp'];
+
+  function pickFile(setter, kind) {
+    return (e) => {
+      const f = e.target.files?.[0] || null;
+      setError('');
+      if (!f) {
+        setter(null);
+        return;
+      }
+      const ext = `.${f.name.split('.').pop()?.toLowerCase() || ''}`;
+      const maxMb = kind === 'manuscript' ? 25 : 10;
+      const allowed = kind === 'manuscript' ? MANUSCRIPT_EXT : COVER_EXT;
+      if (!allowed.includes(ext)) {
+        setter(null);
+        e.target.value = '';
+        setError(
+          kind === 'manuscript'
+            ? `"${f.name}" is not a PDF, DOC, or DOCX file.`
+            : `"${f.name}" must be a JPG, PNG, or WebP image.`
+        );
+        return;
+      }
+      if (f.size > maxMb * 1024 * 1024) {
+        setter(null);
+        e.target.value = '';
+        setError(`"${f.name}" is larger than ${maxMb}MB.`);
+        return;
+      }
+      setter(f);
+    };
+  }
 
   const editingLevel = EDITING_LEVELS.find((e) => e.id === editing);
   const formattingLevel = FORMATTING_LEVELS.find((f) => f.id === formatting);
@@ -70,37 +104,47 @@ export default function GetPublishedClient() {
 
   async function submit(e) {
     e.preventDefault();
-    setState('sending');
     setError('');
 
-    const formData = new FormData();
-    formData.append('name', form.name);
-    formData.append('email', form.email);
-    formData.append('phone', form.phone);
-    formData.append('book_title', form.bookTitle);
-    formData.append('notes', form.notes);
-    formData.append('pages', String(pages));
-    formData.append('editing_level', editing);
-    formData.append('formatting_level', formatting);
-    formData.append('delivery_timeline', timeline);
-    formData.append('addons', JSON.stringify(Array.from(addons)));
-    formData.append('extra_copies', String(extraCopies));
-    formData.append('estimated_total', String(total));
-    if (file) formData.append('manuscript', file);
-    if (frontCover) formData.append('front_cover', frontCover);
-    if (backCover) formData.append('back_cover', backCover);
+    // Client-side validation before any network work
+    if (!form.name.trim() || !form.email.trim() || !form.bookTitle.trim()) {
+      setError('Please fill in your name, email, and book title.');
+      return;
+    }
+    if (!file || !frontCover || !backCover) {
+      setError('Please attach your manuscript and both cover images.');
+      return;
+    }
 
+    setState('uploading');
     try {
-      const res = await fetch('/api/quotes', {
-        method: 'POST',
-        body: formData,
+      // 1. Upload files to Supabase Storage
+      const manuscript = await api.uploadFile(file, 'manuscript');
+      const front = await api.uploadFile(frontCover, 'cover');
+      const back = await api.uploadFile(backCover, 'cover');
+
+      // 2. Submit the quote as JSON referencing the uploaded files
+      setState('sending');
+      await api.submitQuote({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim() || null,
+        book_title: form.bookTitle.trim(),
+        notes: form.notes.trim() || null,
+        pages,
+        editing_level: editing,
+        formatting_level: formatting,
+        delivery_timeline: timeline,
+        addons: JSON.stringify(Array.from(addons)),
+        extra_copies: extraCopies,
+        estimated_total: total,
+        manuscript_file: manuscript.path,
+        front_cover_file: front.url || front.path,
+        back_cover_file: back.url || back.path,
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || 'Quote request failed');
-      }
+
       setState('sent');
-      setForm({ name: '', email: '', phone: '', bookTitle: '', manuscript: '', notes: '' });
+      setForm({ name: '', email: '', phone: '', bookTitle: '', notes: '' });
       setFile(null);
       setFrontCover(null);
       setBackCover(null);
@@ -502,10 +546,7 @@ export default function GetPublishedClient() {
                   type="file"
                   required
                   accept=".pdf,.doc,.docx"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] || null;
-                    setFile(f);
-                  }}
+                  onChange={pickFile(setFile, 'manuscript')}
                   className="block w-full text-sm text-ink/60 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90 cursor-pointer"
                 />
                 {file && (
@@ -525,10 +566,7 @@ export default function GetPublishedClient() {
                   type="file"
                   required
                   accept="image/jpeg,image/png,image/webp"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] || null;
-                    setFrontCover(f);
-                  }}
+                  onChange={pickFile(setFrontCover, 'cover')}
                   className="block w-full text-sm text-ink/60 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90 cursor-pointer"
                 />
                 {frontCover && (
@@ -548,10 +586,7 @@ export default function GetPublishedClient() {
                   type="file"
                   required
                   accept="image/jpeg,image/png,image/webp"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] || null;
-                    setBackCover(f);
-                  }}
+                  onChange={pickFile(setBackCover, 'cover')}
                   className="block w-full text-sm text-ink/60 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90 cursor-pointer"
                 />
                 {backCover && (
@@ -581,10 +616,10 @@ export default function GetPublishedClient() {
               )}
               <button
                 type="submit"
-                disabled={state === 'sending'}
+                disabled={state === 'uploading' || state === 'sending'}
                 className="w-full rounded-md bg-ink text-white text-sm font-medium py-3.5 hover:bg-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {state === 'sending' ? 'Sending…' : 'Send Quote Request'}
+                {state === 'uploading' ? 'Uploading files…' : state === 'sending' ? 'Sending…' : 'Send Quote Request'}
               </button>
               {state === 'sent' && (
                 <p className="text-sm text-center text-green-600 font-medium">Quote request sent ✓</p>

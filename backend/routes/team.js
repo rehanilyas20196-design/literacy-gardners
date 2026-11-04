@@ -1,31 +1,50 @@
 const { Router } = require('express');
 const db = require('../../database');
-const { authMiddleware } = require('../middleware/auth');
-const {
-  validateTeamMember,
-  validateBook,
-  validateLead,
-  validateNewsletter,
-  handleValidationErrors,
-} = require('../middleware/validate');
+const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { validateTeamMember } = require('../middleware/validate');
 
 const router = Router();
 
+const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
 // Public: list team members
-router.get('/', (_req, res) => {
-  res.json(db.listTeam());
-});
+router.get(
+  '/',
+  wrap(async (_req, res) => {
+    res.json(await db.listTeam());
+  })
+);
 
 // Public: list authors
-router.get('/authors', (_req, res) => {
-  res.json(db.listAuthors());
-});
+router.get(
+  '/authors',
+  wrap(async (_req, res) => {
+    res.json(await db.listAuthors());
+  })
+);
 
-// Protected: create team member (admin only)
-router.post('/', authMiddleware, validateTeamMember, (req, res) => {
-  const m = req.body;
-  const created = db.createTeamMember(m);
-  res.status(201).json(created);
-});
+// Admin only: create team member
+router.post(
+  '/',
+  authMiddleware,
+  adminMiddleware,
+  validateTeamMember,
+  wrap(async (req, res) => {
+    const m = req.body;
+    const created = await db.createTeamMember(m);
+    res.status(201).json(created);
+  })
+);
+
+// Admin only: delete team member
+router.delete(
+  '/:id',
+  authMiddleware,
+  adminMiddleware,
+  wrap(async (req, res) => {
+    const result = await db.deleteTeamMember(req.params.id);
+    res.json(result);
+  })
+);
 
 module.exports = router;

@@ -1,38 +1,60 @@
 const { getDb } = require('../connection');
 
-function listCompetitions(status = null) {
+async function listCompetitions(status = null) {
   const db = getDb();
-  if (status) {
-    return db.prepare('SELECT * FROM competitions WHERE status = ? ORDER BY starts_at DESC').all(status);
+  let query = db.from('competitions').select('*').order('starts_at', { ascending: false });
+  if (status) query = query.eq('status', status);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+async function createLead(lead) {
+  const db = getDb();
+  const payload = {
+    name: lead.name,
+    email: lead.email,
+    message: lead.message ?? null,
+    type: lead.type ?? 'general',
+  };
+  const { data, error } = await db.from('leads').insert(payload).select().single();
+  if (error) throw error;
+  return { id: data.id, ...payload };
+}
+
+async function listLeads(type = null) {
+  const db = getDb();
+  let query = db.from('leads').select('*').order('created_at', { ascending: false });
+  if (type) query = query.eq('type', type);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+async function subscribeNewsletter(email) {
+  const db = getDb();
+  const { data, error } = await db
+    .from('newsletter')
+    .insert({ email })
+    .select()
+    .maybeSingle();
+  if (error) {
+    if (error.code === '23505' || /duplicate/i.test(error.message || '')) {
+      return { inserted: false, email };
+    }
+    throw error;
   }
-  return db.prepare('SELECT * FROM competitions ORDER BY starts_at DESC').all();
+  return { inserted: Boolean(data), email };
 }
 
-function createLead(lead) {
+async function listNewsletter() {
   const db = getDb();
-  const info = db
-    .prepare('INSERT INTO leads (name, email, message, type) VALUES (?, ?, ?, ?)')
-    .run(lead.name, lead.email, lead.message ?? null, lead.type ?? 'general');
-  return { id: Number(info.lastInsertRowid), ...lead };
-}
-
-function listLeads(type = null) {
-  const db = getDb();
-  if (type) {
-    return db.prepare('SELECT * FROM leads WHERE type = ? ORDER BY created_at DESC').all(type);
-  }
-  return db.prepare('SELECT * FROM leads ORDER BY created_at DESC').all();
-}
-
-function subscribeNewsletter(email) {
-  const db = getDb();
-  const info = db.prepare('INSERT OR IGNORE INTO newsletter (email) VALUES (?)').run(email);
-  return { inserted: Number(info.changes) > 0, email };
-}
-
-function listNewsletter() {
-  const db = getDb();
-  return db.prepare('SELECT * FROM newsletter ORDER BY created_at DESC').all();
+  const { data, error } = await db
+    .from('newsletter')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
 module.exports = {
@@ -40,5 +62,5 @@ module.exports = {
   createLead,
   listLeads,
   subscribeNewsletter,
-  listNewsletter
+  listNewsletter,
 };

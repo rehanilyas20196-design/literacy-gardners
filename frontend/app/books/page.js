@@ -26,6 +26,18 @@ function BooksInner() {
   const [sort, setSort] = useState(searchParams.get('sort') || 'newest');
   const [q, setQ] = useState('');
 
+  // Filters live in the URL, so re-navigating to /books?category=… on the same
+  // route must re-apply them (the initial state alone only runs once).
+  const urlCategory = searchParams.get('category') || 'All';
+  const urlSort = searchParams.get('sort') || 'newest';
+  const urlKey = `${urlCategory}|${urlSort}`;
+  const [lastUrlKey, setLastUrlKey] = useState(urlKey);
+  if (urlKey !== lastUrlKey) {
+    setLastUrlKey(urlKey);
+    if (urlCategory !== category) setCategory(urlCategory);
+    if (urlSort !== sort) setSort(urlSort);
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     try {

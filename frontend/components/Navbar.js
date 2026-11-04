@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { api, getToken } from '@/lib/api';
@@ -25,6 +26,7 @@ const CLUB_DROP = [
 function Dropdown({ label, items, open, setOpen }) {
   const ref = useRef(null);
   const pathname = usePathname();
+  const searchString = useSearchParams().toString();
 
   useEffect(() => {
     function onDoc(e) {
@@ -49,17 +51,23 @@ function Dropdown({ label, items, open, setOpen }) {
         </svg>
       </button>
       <div className="nav-dropdown-panel" role="menu">
-        {items.map((it) => (
-          <Link
-            key={it.href}
-            href={it.href}
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            className={pathname === it.href ? 'bg-muted' : ''}
-          >
-            {it.label}
-          </Link>
-        ))}
+        {items.map((it) => {
+          const [hrefPath, hrefQuery = ''] = it.href.split('?');
+          const active =
+            pathname === hrefPath && (hrefQuery ? hrefQuery === searchString : searchString === '');
+          return (
+            <Link
+              key={it.href}
+              href={it.href}
+              role="menuitem"
+              aria-current={active ? 'page' : undefined}
+              onClick={() => setOpen(false)}
+              className={active ? 'bg-muted' : ''}
+            >
+              {it.label}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
@@ -76,22 +84,21 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState(null);
-  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const token = getToken();
-    if (token) {
-      api.getMe()
-        .then((res) => {
-          setUser(res.user);
-          setChecking(false);
-        })
-        .catch(() => {
-          setChecking(false);
-        });
-    } else {
-      setChecking(false);
-    }
+    // Only async callbacks touch state here — a stale token resolves to a
+    // signed-out navbar instead of blocking the page.
+    if (!getToken()) return undefined;
+    let alive = true;
+    api
+      .getMe()
+      .then((res) => {
+        if (alive) setUser(res.user);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const handleLogout = () => {
@@ -119,11 +126,6 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    setMobileOpen(false);
-    setOpenDrop(null);
-  }, [pathname]);
-
-  useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape') {
         setOpenDrop(null);
@@ -134,6 +136,17 @@ export default function Navbar() {
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
+  // Close menus when the route changes (state adjusted during render, the
+  // React-recommended alternative to a setState-in-effect).
+  const [lastPath, setLastPath] = useState(pathname);
+  if (pathname !== lastPath) {
+    setLastPath(pathname);
+    setMobileOpen(false);
+    setOpenDrop(null);
+    setMobileAcc(null);
+    setUserDrop(false);
+  }
+
   return (
     <header
       className={`sticky top-0 z-[100] transition-colors duration-200 ${
@@ -142,7 +155,14 @@ export default function Navbar() {
     >
       <nav className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between gap-6">
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <img src="/website logo.png" alt="Literacy Gardeners" className="w-10 h-10 select-none" />
+          <Image
+            src="/website logo.png"
+            alt="Literacy Gardeners"
+            width={40}
+            height={40}
+            className="w-10 h-10 select-none"
+            priority
+          />
           <span className="leading-tight">
             <span className="block text-[15px] font-semibold tracking-tight text-ink">Literacy Gardeners</span>
             <span className="block font-mono text-[10px] tracking-[0.08em] text-ink/50 uppercase">Grow · Write · Publish</span>
@@ -168,7 +188,7 @@ export default function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          {checking ? null : user ? (
+          {user ? (
             <div ref={userRef} className="relative group">
               <button
                 onClick={() => setUserDrop((v) => !v)}
@@ -318,7 +338,7 @@ export default function Navbar() {
               </div>
             </div>
 
-            {checking ? null : user ? (
+            {user ? (
               <button
                 onClick={handleLogout}
                 className="block py-3 text-sm font-medium border-t border-border text-error"

@@ -1,45 +1,51 @@
 const { getDb } = require('../connection');
 
-function createQuote(quote) {
+async function createQuote(quote) {
   const db = getDb();
-  const info = db
-    .prepare(
-      `INSERT INTO quotes (name, email, phone, book_title, notes, pages, editing_level, formatting_level,
-         delivery_timeline, addons, extra_copies, estimated_total, manuscript_file, front_cover_file, back_cover_file)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      quote.name,
-      quote.email,
-      quote.phone ?? null,
-      quote.book_title,
-      quote.notes ?? null,
-      quote.pages ?? 0,
-      quote.editing_level ?? null,
-      quote.formatting_level ?? null,
-      quote.delivery_timeline ?? null,
-      quote.addons ?? null,
-      quote.extra_copies ?? 0,
-      quote.estimated_total ?? 0,
-      quote.manuscript_file ?? null,
-      quote.front_cover_file ?? null,
-      quote.back_cover_file ?? null
-    );
-  return { id: Number(info.lastInsertRowid), ...quote };
+  const payload = {
+    name: quote.name,
+    email: quote.email,
+    phone: quote.phone ?? null,
+    book_title: quote.book_title,
+    notes: quote.notes ?? null,
+    pages: quote.pages ?? 0,
+    editing_level: quote.editing_level ?? null,
+    formatting_level: quote.formatting_level ?? null,
+    delivery_timeline: quote.delivery_timeline ?? null,
+    addons: quote.addons ?? null,
+    extra_copies: quote.extra_copies ?? 0,
+    estimated_total: quote.estimated_total ?? 0,
+    manuscript_file: quote.manuscript_file ?? null,
+    front_cover_file: quote.front_cover_file ?? null,
+    back_cover_file: quote.back_cover_file ?? null,
+    status: quote.status ?? 'pending',
+  };
+  const { data, error } = await db.from('quotes').insert(payload).select().single();
+  if (error) throw error;
+  return { id: data.id, ...payload };
 }
 
-function listQuotes(status = null) {
+async function listQuotes(status = null) {
   const db = getDb();
-  if (status) {
-    return db.prepare('SELECT * FROM quotes WHERE status = ? ORDER BY created_at DESC').all(status);
-  }
-  return db.prepare('SELECT * FROM quotes ORDER BY created_at DESC').all();
+  let query = db.from('quotes').select('*').order('created_at', { ascending: false });
+  if (status) query = query.eq('status', status);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
 }
 
-function updateQuoteStatus(id, status) {
+async function updateQuoteStatus(id, status) {
   const db = getDb();
-  db.prepare('UPDATE quotes SET status = ? WHERE id = ?').run(status, id);
-  return { id: Number(id), status };
+  const { error } = await db.from('quotes').update({ status }).eq('id', id);
+  if (error) throw error;
+  return { id, status };
 }
 
-module.exports = { createQuote, listQuotes, updateQuoteStatus };
+async function deleteQuote(id) {
+  const db = getDb();
+  const { error } = await db.from('quotes').delete().eq('id', id);
+  if (error) throw error;
+  return { id, deleted: true };
+}
+
+module.exports = { createQuote, listQuotes, updateQuoteStatus, deleteQuote };

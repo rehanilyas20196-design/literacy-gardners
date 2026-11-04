@@ -12,6 +12,9 @@ import QuotesTab from './tabs/QuotesTab';
 import BooksTab from './tabs/BooksTab';
 import LeadsTab from './tabs/LeadsTab';
 import NewsletterTab from './tabs/NewsletterTab';
+import ReviewsTab from './tabs/ReviewsTab';
+import OrdersTab from './tabs/OrdersTab';
+import ApplicationsTab from './tabs/ApplicationsTab';
 
 const NAV = [
   {
@@ -24,15 +27,26 @@ const NAV = [
       { id: 'books', label: 'Books', icon: '📚', badge: 'pendingBooks' },
       { id: 'authors', label: 'Authors', icon: '✍️' },
       { id: 'quotes', label: 'Quote requests', icon: '💬', badge: 'pendingQuotes' },
+      { id: 'reviews', label: 'Reviews', icon: '⭐', badge: 'pendingReviews' },
     ],
   },
   {
     section: 'People',
     items: [
       { id: 'users', label: 'Users', icon: '👥' },
+      {
+        id: 'applications',
+        label: 'Author applications',
+        icon: '🖊️',
+        badge: 'pendingApplications',
+      },
       { id: 'leads', label: 'Messages', icon: '✉️', badge: 'leads' },
       { id: 'newsletter', label: 'Newsletter', icon: '🔔' },
     ],
+  },
+  {
+    section: 'Sales',
+    items: [{ id: 'orders', label: 'Orders', icon: '🧾', badge: 'pendingOrders' }],
   },
 ];
 
@@ -44,6 +58,9 @@ const TITLES = {
   users: ['Users', 'Accounts with access to the site'],
   leads: ['Messages', 'Contact form submissions'],
   newsletter: ['Newsletter', 'Subscribers to your mailing list'],
+  reviews: ['Reviews', 'Moderate reader reviews before they appear on book pages'],
+  orders: ['Orders', 'Checkout orders — cash on delivery and bank transfer'],
+  applications: ['Author applications', 'Approve authors and review their payout details'],
 };
 
 const EMPTY = {
@@ -54,6 +71,9 @@ const EMPTY = {
   books: [],
   leads: [],
   subscribers: [],
+  reviews: [],
+  orders: [],
+  applications: [],
 };
 
 export default function AdminClient() {
@@ -71,6 +91,14 @@ export default function AdminClient() {
     setData((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  // Functional variant — updater always receives the *current* value, never a stale closure
+  const update = useCallback((key, updater) => {
+    setData((prev) => ({
+      ...prev,
+      [key]: typeof updater === 'function' ? updater(prev[key]) : updater,
+    }));
+  }, []);
+
   const refreshStats = useCallback(() => {
     api
       .getStats()
@@ -82,7 +110,7 @@ export default function AdminClient() {
     setError('');
     const settle = (promise) =>
       promise.then((data) => ({ ok: true, data })).catch((error) => ({ ok: false, error }));
-    const [s, u, a, q, b, l, n] = await Promise.all([
+    const [s, u, a, q, b, l, n, r, o, ap] = await Promise.all([
       settle(api.getStats()),
       settle(api.getUsers()),
       settle(api.getAuthors()),
@@ -90,10 +118,17 @@ export default function AdminClient() {
       settle(api.getAllBooks()),
       settle(api.getLeads()),
       settle(api.getNewsletter()),
+      settle(api.getReviews()),
+      settle(api.getOrders()),
+      settle(api.getAuthorApplications()),
     ]);
-    const results = [s, u, a, q, b, l, n];
-    if (results.every((r) => !r.ok)) {
+    const results = [s, u, a, q, b, l, n, r, o, ap];
+    if (results.every((res) => !res.ok)) {
       throw results[0].error || new Error('Failed to load admin data');
+    }
+    const failed = results.filter((res) => !res.ok).length;
+    if (failed > 0) {
+      toast(`Some admin data could not be loaded (${failed} of ${results.length} requests failed).`);
     }
     setData({
       stats: s.ok ? s.data.stats : null,
@@ -103,6 +138,9 @@ export default function AdminClient() {
       books: b.ok ? b.data.books : [],
       leads: l.ok ? l.data.leads : [],
       subscribers: n.ok ? n.data.subscribers : [],
+      reviews: r.ok ? r.data.reviews : [],
+      orders: o.ok ? o.data.orders : [],
+      applications: ap.ok ? ap.data.applications : [],
     });
   }, []);
 
@@ -369,7 +407,7 @@ export default function AdminClient() {
             {tab === 'users' && (
               <UsersTab
                 users={data.users}
-                setUsers={(v) => patch('users', typeof v === 'function' ? v(data.users) : v)}
+                setUsers={(v) => update('users', v)}
                 me={me}
                 refreshStats={refreshStats}
               />
@@ -377,7 +415,7 @@ export default function AdminClient() {
             {tab === 'authors' && (
               <AuthorsTab
                 authors={data.authors}
-                setAuthors={(v) => patch('authors', typeof v === 'function' ? v(data.authors) : v)}
+                setAuthors={(v) => update('authors', v)}
                 books={data.books}
                 refreshStats={refreshStats}
               />
@@ -385,14 +423,14 @@ export default function AdminClient() {
             {tab === 'quotes' && (
               <QuotesTab
                 quotes={data.quotes}
-                setQuotes={(v) => patch('quotes', typeof v === 'function' ? v(data.quotes) : v)}
+                setQuotes={(v) => update('quotes', v)}
                 refreshStats={refreshStats}
               />
             )}
             {tab === 'books' && (
               <BooksTab
                 books={data.books}
-                setBooks={(v) => patch('books', typeof v === 'function' ? v(data.books) : v)}
+                setBooks={(v) => update('books', v)}
                 refreshStats={refreshStats}
                 intent={intent}
                 clearIntent={() => setIntent(null)}
@@ -401,14 +439,35 @@ export default function AdminClient() {
             {tab === 'leads' && (
               <LeadsTab
                 leads={data.leads}
-                setLeads={(v) => patch('leads', typeof v === 'function' ? v(data.leads) : v)}
+                setLeads={(v) => update('leads', v)}
                 refreshStats={refreshStats}
               />
             )}
             {tab === 'newsletter' && (
               <NewsletterTab
                 subscribers={data.subscribers}
-                setSubscribers={(v) => patch('subscribers', typeof v === 'function' ? v(data.subscribers) : v)}
+                setSubscribers={(v) => update('subscribers', v)}
+                refreshStats={refreshStats}
+              />
+            )}
+            {tab === 'reviews' && (
+              <ReviewsTab
+                reviews={data.reviews}
+                setReviews={(v) => update('reviews', v)}
+                refreshStats={refreshStats}
+              />
+            )}
+            {tab === 'orders' && (
+              <OrdersTab
+                orders={data.orders}
+                setOrders={(v) => update('orders', v)}
+                refreshStats={refreshStats}
+              />
+            )}
+            {tab === 'applications' && (
+              <ApplicationsTab
+                applications={data.applications}
+                setApplications={(v) => update('applications', v)}
                 refreshStats={refreshStats}
               />
             )}

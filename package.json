@@ -11,9 +11,7 @@
     "start": "npm --prefix backend run start"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.9",
-    "@react-three/fiber": "^9.8.2",
-    "bcryptjs": "^3.0.3",
-    "three": "^0.187.0"
+    "@supabase/supabase-js": "^2.118.0",
+    "bcryptjs": "^3.0.3"
   }
 }

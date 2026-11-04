@@ -1,21 +1,41 @@
 const { getDb } = require('../connection');
 
-function listTeam() {
+async function listTeam() {
   const db = getDb();
-  return db.prepare('SELECT * FROM team_members ORDER BY sort_order ASC').all();
+  const { data, error } = await db
+    .from('team_members')
+    .select('*')
+    .order('sort_order', { ascending: true });
+  if (error) throw error;
+  return data || [];
 }
 
-function listAuthors() {
+async function listAuthors() {
   const db = getDb();
-  return db.prepare('SELECT * FROM authors ORDER BY name ASC').all();
+  const { data, error } = await db.from('authors').select('*').order('name', { ascending: true });
+  if (error) throw error;
+  return data || [];
 }
 
-function createTeamMember(member) {
+async function createTeamMember(member) {
   const db = getDb();
-  const info = db
-    .prepare('INSERT INTO team_members (name, role, bio, initial, sort_order) VALUES (?, ?, ?, ?, ?)')
-    .run(member.name, member.role, member.bio ?? null, member.initial, member.sort_order ?? 0);
-  return { id: Number(info.lastInsertRowid), ...member };
+  const payload = {
+    name: member.name,
+    role: member.role,
+    bio: member.bio ?? null,
+    initial: member.initial,
+    sort_order: member.sort_order ?? 0,
+  };
+  const { data, error } = await db.from('team_members').insert(payload).select().single();
+  if (error) throw error;
+  return { id: data.id, ...payload };
 }
 
-module.exports = { listTeam, listAuthors, createTeamMember };
+async function deleteTeamMember(id) {
+  const db = getDb();
+  const { error } = await db.from('team_members').delete().eq('id', id);
+  if (error) throw error;
+  return { id, deleted: true };
+}
+
+module.exports = { listTeam, listAuthors, createTeamMember, deleteTeamMember };
