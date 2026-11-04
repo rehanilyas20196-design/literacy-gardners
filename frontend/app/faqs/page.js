@@ -78,7 +78,7 @@ export default function FAQsPage() {
                 key={cat}
                 type="button"
                 onClick={() => setActiveCategory(cat)}
-                className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
+                className={`rounded-md px-4 py-1.5 text-xs font-medium transition-all ${
                   activeCategory === cat
                     ? 'bg-ink text-white'
                     : 'bg-surface text-ink/60 border border-border hover:bg-muted hover:text-ink'

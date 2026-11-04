@@ -88,7 +88,7 @@ function BooksInner() {
             key={c}
             type="button"
             onClick={() => setCategory(c)}
-            className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+            className={`rounded-md border px-4 py-1.5 text-sm font-medium transition-colors ${
               category === c
                 ? 'bg-ink text-white border-ink'
                 : 'bg-surface text-ink/70 border-border hover:border-ink'

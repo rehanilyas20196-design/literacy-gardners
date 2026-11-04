@@ -147,7 +147,7 @@ export default function AuthorPage() {
                 role="tab"
                 aria-selected={tab === 'register'}
                 onClick={() => setTab('register')}
-                className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-md px-5 py-2 text-sm font-medium transition-colors ${
                   tab === 'register' ? 'bg-ink text-white' : 'text-ink/60 hover:text-ink'
                 }`}
               >
@@ -158,7 +158,7 @@ export default function AuthorPage() {
                 role="tab"
                 aria-selected={tab === 'login'}
                 onClick={() => setTab('login')}
-                className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-md px-5 py-2 text-sm font-medium transition-colors ${
                   tab === 'login' ? 'bg-ink text-white' : 'text-ink/60 hover:text-ink'
                 }`}
               >
@@ -232,7 +232,7 @@ export default function AuthorPage() {
                 <button
                   type="submit"
                   disabled={regBusy}
-                  className={`w-full rounded-full text-sm font-medium px-[18px] py-[12px] transition-colors ${
+                  className={`w-full rounded-md text-sm font-medium px-[18px] py-[12px] transition-colors ${
                     regBusy ? 'bg-muted text-ink/40 cursor-wait' : 'bg-ink text-white hover:bg-primary'
                   }`}
                 >
@@ -287,7 +287,7 @@ export default function AuthorPage() {
                 <button
                   type="submit"
                   disabled={loginBusy}
-                  className={`w-full rounded-full text-sm font-medium px-[18px] py-[12px] transition-colors ${
+                  className={`w-full rounded-md text-sm font-medium px-[18px] py-[12px] transition-colors ${
                     loginBusy ? 'bg-muted text-ink/40 cursor-wait' : 'bg-ink text-white hover:bg-primary'
                   }`}
                 >

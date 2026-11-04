@@ -1,33 +1,28 @@
 const { Router } = require('express');
 const db = require('../../database');
+const { validateLead, validateNewsletter, handleValidationErrors } = require('../middleware/validate');
 
 const router = Router();
 
+// Public: list competitions
 router.get('/competitions', (req, res) => {
   const { status } = req.query;
   res.json(db.listCompetitions(status || null));
 });
 
-router.post('/leads', (req, res) => {
-  const lead = req.body || {};
-  if (!lead.name || !lead.email) {
-    return res.status(400).json({ error: 'name and email are required' });
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) {
-    return res.status(400).json({ error: 'invalid email' });
-  }
-  res.status(201).json(db.createLead(lead));
+// Public: submit a lead (contact form)
+router.post('/leads', validateLead, (req, res) => {
+  const lead = req.body;
+  const created = db.createLead(lead);
+  res.status(201).json(created);
 });
 
-router.get('/leads', (req, res) => {
-  res.json(db.listLeads(req.query.type || null));
-});
+// Lead listing/deletion requires admin — see routes/admin.js
+// (/api/adminpanelcode/leads)
 
-router.post('/newsletter', (req, res) => {
-  const { email } = req.body || {};
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.status(400).json({ error: 'valid email required' });
-  }
+// Public: subscribe to newsletter
+router.post('/newsletter', validateNewsletter, (req, res) => {
+  const { email } = req.body;
   const result = db.subscribeNewsletter(email);
   res.status(result.inserted ? 201 : 200).json({ ok: true, ...result });
 });

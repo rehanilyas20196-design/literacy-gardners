@@ -28,6 +28,11 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <link rel="icon" href="/website logo.png" sizes="any" />
+        <link rel="apple-touch-icon" href="/website logo.png" />
+        <meta name="application-name" content="Literacy Gardeners" />
+      </head>
       <body className="min-h-full flex flex-col bg-surface text-ink">
         <CartProvider>
           <Navbar />

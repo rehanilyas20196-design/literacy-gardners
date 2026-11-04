@@ -1,3 +1,38 @@
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  role TEXT DEFAULT 'user' CHECK (role IN ('user','admin')),
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+CREATE TABLE IF NOT EXISTS quotes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT,
+  book_title TEXT NOT NULL,
+  notes TEXT,
+  pages INTEGER DEFAULT 0,
+  editing_level TEXT,
+  formatting_level TEXT,
+  delivery_timeline TEXT,
+  addons TEXT,
+  extra_copies INTEGER DEFAULT 0,
+  estimated_total REAL,
+  manuscript_file TEXT,
+  front_cover_file TEXT,
+  back_cover_file TEXT,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending','reviewed','sent')),
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
+CREATE INDEX IF NOT EXISTS idx_quotes_email ON quotes(email);
+
 -- Literacy Gardeners — schema
 CREATE TABLE IF NOT EXISTS authors (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,6 +64,7 @@ CREATE TABLE IF NOT EXISTS books (
   best_seller_rank INTEGER,
   is_published INTEGER DEFAULT 1,
   image TEXT,
+  back_image TEXT,
   template TEXT DEFAULT 'hardcover',
   created_at TEXT DEFAULT (datetime('now'))
 );

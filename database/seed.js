@@ -1,4 +1,5 @@
 const { getDb } = require('./connection');
+const bcrypt = require('bcryptjs');
 
 function slugify(s) {
   return String(s)
@@ -11,6 +12,9 @@ function slugify(s) {
 function seedIfEmpty() {
   const db = getDb();
   const count = db.prepare('SELECT COUNT(*) AS n FROM books').get().n;
+
+  seedUsers(db);
+
   if (count > 0) return false;
 
   db.exec('BEGIN');
@@ -27,8 +31,8 @@ function seedIfEmpty() {
 
     const insBook = db.prepare(
       `INSERT INTO books (title, slug, author_id, author_name, category, description, cover_class, ornament,
-        pages, rating, year, copies_sold, price, sale_price, stock_status, badge, is_best_seller, best_seller_rank, image, template, is_published)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
+        pages, rating, year, copies_sold, price, sale_price, stock_status, badge, is_best_seller, best_seller_rank, image, back_image, template, is_published)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
     );
     const rows = [
       ['Death Before Breakfast', a5, 'George Bellairs', 'Mystery & Crime',
@@ -58,7 +62,9 @@ function seedIfEmpty() {
     ];
     for (const r of rows) {
       const title = r[0];
-      insBook.run(title, slugify(title), ...r.slice(1));
+      const args = [title, slugify(title), ...r.slice(1)];
+      args.splice(-1, 0, null); // insert null for back_image before template
+      insBook.run(...args);
     }
 
     const insTeam = db.prepare(
@@ -81,11 +87,28 @@ function seedIfEmpty() {
     insComp.run('Monsoon Anthology Call', 'public', 'Rain', 'upcoming', 2.5, '2026-06-01', '2026-07-15');
 
     db.exec('COMMIT');
+
+    seedUsers(db);
+
     return true;
   } catch (err) {
     db.exec('ROLLBACK');
     throw err;
   }
+}
+
+function seedUsers(db) {
+  const existing = db.prepare('SELECT id FROM users LIMIT 1').get();
+  if (existing) return;
+
+  const adminHash = bcrypt.hashSync('admin123', 12);
+  const userHash = bcrypt.hashSync('user123', 12);
+
+  const insUser = db.prepare(
+    'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)'
+  );
+  insUser.run('Admin User', 'admin@literacygardeners.com', adminHash, 'admin');
+  insUser.run('Demo User', 'user@literacygardeners.com', userHash, 'user');
 }
 
 function ensureColumns() {
@@ -99,6 +122,9 @@ function ensureColumns() {
   }
   if (!cols.includes('stock_status')) {
     db.exec("ALTER TABLE books ADD COLUMN stock_status TEXT DEFAULT 'in_stock'");
+  }
+  if (!cols.includes('back_image')) {
+    db.exec('ALTER TABLE books ADD COLUMN back_image TEXT');
   }
   db.prepare(
     `UPDATE books SET slug = LOWER(REPLACE(REPLACE(REPLACE(title, '''', ''), ' ', '-'), '’', ''))

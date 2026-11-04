@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
 import Link from 'next/link';
 
 export default function SignupPage() {
+  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,7 +15,7 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
     setError('');
     if (!name.trim()) {
@@ -32,12 +35,14 @@ export default function SignupPage() {
       return;
     }
     setBusy(true);
-    setTimeout(() => {
+    try {
+      await api.register({ name: name.trim(), email, password });
+      router.push('/login');
+    } catch (err) {
+      setError(err.message || 'Signup failed');
+    } finally {
       setBusy(false);
-      window.dispatchEvent(
-        new CustomEvent('lg-toast', { detail: `Welcome to Literacy Gardeners, ${name.trim().split(' ')[0]}!` })
-      );
-    }, 700);
+    }
   }
 
   return (
@@ -45,7 +50,6 @@ export default function SignupPage() {
       {/* LEFT — FORM */}
       <div className="flex items-center justify-center px-6 py-12 lg:py-14 order-1 lg:order-none">
         <div className="w-full max-w-sm">
-          {/* Loader animation above the form */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/Book Loader.svg"
@@ -125,7 +129,7 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={busy}
-              className={`w-full rounded-full text-sm font-medium px-[18px] py-[12px] transition-colors ${
+              className={`w-full rounded-md text-sm font-medium px-[18px] py-[12px] transition-colors ${
                 busy
                   ? 'bg-muted text-ink/40 cursor-wait'
                   : 'bg-ink text-white hover:bg-primary'

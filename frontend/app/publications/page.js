@@ -220,7 +220,7 @@ function PublicationsInner() {
                 key={tag}
                 type="button"
                 onClick={() => toggleTag(tag)}
-                className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
+                className={`rounded-md border px-3.5 py-1.5 text-sm transition-colors ${
                   selectedTags.includes(tag)
                     ? 'bg-ink text-white border-ink'
                     : 'bg-surface text-ink/70 border-border hover:border-ink'

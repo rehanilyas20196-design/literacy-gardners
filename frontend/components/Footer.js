@@ -25,7 +25,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
           <div className="md:col-span-1">
             <Link href="/" className="flex items-center gap-2.5">
-              <span className="w-8 h-8 bg-primary text-white grid place-items-center font-bold text-sm">L</span>
+              <img src="/website logo.png" alt="Literacy Gardeners" className="w-10 h-10 select-none" />
               <span className="text-[15px] font-semibold text-ink">Literacy Gardeners</span>
             </Link>
             <p className="mt-4 text-sm text-ink/60 leading-relaxed max-w-xs">
@@ -42,7 +42,7 @@ export default function Footer() {
               />
               <button
                 type="submit"
-                className="rounded-full bg-ink text-white text-sm font-medium px-[18px] py-[10px] hover:bg-primary transition-colors shrink-0"
+                className="rounded-md bg-ink text-white text-sm font-medium px-[18px] py-[10px] hover:bg-primary transition-colors shrink-0"
               >
                 Join
               </button>

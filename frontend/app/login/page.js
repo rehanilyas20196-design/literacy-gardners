@@ -1,17 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { api, getToken } from '@/lib/api';
 import Link from 'next/link';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [checked, setChecked] = useState(false);
 
-  function submit(e) {
+  useEffect(() => {
+    if (getToken()) {
+      setError('You are already logged in. Please log out first.');
+    }
+    setChecked(true);
+  }, []);
+
+  async function submit(e) {
     e.preventDefault();
     setError('');
     if (!email.includes('@')) {
@@ -22,14 +33,22 @@ export default function LoginPage() {
       setError('Password must be at least 6 characters.');
       return;
     }
+    if (getToken()) {
+      setError('You are already logged in. Please log out first.');
+      return;
+    }
     setBusy(true);
-    setTimeout(() => {
+    try {
+      await api.login({ email, password });
+      router.push('/');
+    } catch (err) {
+      setError(err.message || 'Login failed');
+    } finally {
       setBusy(false);
-      window.dispatchEvent(
-        new CustomEvent('lg-toast', { detail: `Welcome back, ${email.split('@')[0]}!` })
-      );
-    }, 700);
+    }
   }
+
+  if (!checked) return null;
 
   return (
     <div className="min-h-[calc(100vh-64px)] grid lg:grid-cols-2">
@@ -56,7 +75,6 @@ export default function LoginPage() {
       {/* RIGHT — FORM */}
       <div className="flex items-center justify-center px-6 py-12 lg:py-14">
         <div className="w-full max-w-sm">
-          {/* Loader animation above the form */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/Book Loader.svg"
@@ -135,7 +153,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={busy}
-              className={`w-full rounded-full text-sm font-medium px-[18px] py-[12px] transition-colors ${
+              className={`w-full rounded-md text-sm font-medium px-[18px] py-[12px] transition-colors ${
                 busy
                   ? 'bg-muted text-ink/40 cursor-wait'
                   : 'bg-ink text-white hover:bg-primary'

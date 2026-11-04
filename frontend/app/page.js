@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { coverDataURL } from '@/lib/covers';
-import BookShowcase3D, { YOUNG_AUTHORS_BOOKS } from '@/components/BookShowcase3D';
+import BookShowcase3D from '@/components/BookShowcase3D';
 import ProductCard from '@/components/ProductCard';
 import Reveal from '@/components/Reveal';
 
@@ -161,7 +161,37 @@ const TRUST = ['City School', 'Beaconhouse', 'LUMS Soc', 'Writers Guild', 'Indus
 
 export default function HomePage() {
   const [best, setBest] = useState([]);
+  const [showcaseBooks, setShowcaseBooks] = useState([]);
   const [loaded, setLoaded] = useState(false);
+
+  const COLORS = [
+    { accent: '#9f1239', spine: '#4c0519' },
+    { accent: '#1d4ed8', spine: '#172554' },
+    { accent: '#0284c7', spine: '#082f49' },
+    { accent: '#4f46e5', spine: '#1e1b4b' },
+    { accent: '#d97706', spine: '#451a03' },
+    { accent: '#334155', spine: '#0f172a' },
+  ];
+
+  function mapToShowcase(book, idx) {
+    const c = COLORS[idx % COLORS.length];
+    return {
+      id: book.id,
+      title: book.title,
+      author: book.author_name,
+      role: book.badge || 'Young Author',
+      category: book.category,
+      badge: book.badge || 'New',
+      year: String(book.year),
+      pages: book.pages,
+      rating: book.rating,
+      description: book.description,
+      image: book.image || `/images/animationimages/${(idx % 8) + 3}.jfif`,
+      accentColor: c.accent,
+      spineColor: c.spine,
+      slug: book.slug,
+    };
+  }
 
   useEffect(() => {
     let alive = true;
@@ -170,9 +200,13 @@ export default function HomePage() {
         const bs = await api.getBestSellers(6);
         if (!alive) return;
         setBest(bs.length ? bs : FALLBACK);
+        const all = await api.getBooks();
+        if (!alive) return;
+        setShowcaseBooks(all.map(mapToShowcase));
       } catch {
         if (!alive) return;
         setBest(FALLBACK);
+        setShowcaseBooks(FALLBACK.map(mapToShowcase));
       } finally {
         if (alive) setLoaded(true);
       }
@@ -207,19 +241,19 @@ export default function HomePage() {
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <Link
                 href="/get-published"
-                className="inline-flex items-center rounded-full bg-ink text-white text-sm font-medium px-[18px] py-[12px] hover:bg-primary transition-colors"
+                className="inline-flex items-center rounded-md bg-ink text-white text-sm font-medium px-[18px] py-[12px] hover:bg-primary transition-colors"
               >
                 Get Published
               </Link>
               <Link
                 href="/books"
-                className="inline-flex items-center rounded-full bg-secondary text-ink text-sm font-medium px-[18px] py-[12px] hover:bg-secondary/70 transition-colors"
+                className="inline-flex items-center rounded-md bg-secondary text-ink text-sm font-medium px-[18px] py-[12px] hover:bg-secondary/70 transition-colors"
               >
                 Browse Books
               </Link>
               <Link
                 href="/author"
-                className="inline-flex items-center rounded-full bg-primary text-white text-sm font-medium px-[18px] py-[12px] hover:bg-ink transition-colors"
+                className="inline-flex items-center rounded-md bg-primary text-white text-sm font-medium px-[18px] py-[12px] hover:bg-ink transition-colors"
               >
                 Register as Author
               </Link>
@@ -263,7 +297,11 @@ export default function HomePage() {
 
         <div className="mx-auto max-w-6xl px-6 pb-16">
           <BookShowcase3D
-            books={YOUNG_AUTHORS_BOOKS}
+            books={showcaseBooks.length > 0 ? showcaseBooks : FALLBACK.map((b, i) => ({
+              ...b,
+              accentColor: COLORS[i % COLORS.length].accent,
+              spineColor: COLORS[i % COLORS.length].spine,
+            }))}
             height={560}
           />
         </div>
@@ -395,7 +433,7 @@ export default function HomePage() {
             <div className="mt-8">
               <Link
                 href="/get-published"
-                className="inline-flex items-center rounded-full bg-ink text-white text-sm font-medium px-[18px] py-[12px] hover:bg-primary transition-colors"
+                className="inline-flex items-center rounded-md bg-ink text-white text-sm font-medium px-[18px] py-[12px] hover:bg-primary transition-colors"
               >
                 Get Published Now
               </Link>

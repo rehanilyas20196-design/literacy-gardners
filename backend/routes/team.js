@@ -1,22 +1,31 @@
 const { Router } = require('express');
 const db = require('../../database');
+const { authMiddleware } = require('../middleware/auth');
+const {
+  validateTeamMember,
+  validateBook,
+  validateLead,
+  validateNewsletter,
+  handleValidationErrors,
+} = require('../middleware/validate');
 
 const router = Router();
 
+// Public: list team members
 router.get('/', (_req, res) => {
   res.json(db.listTeam());
 });
 
+// Public: list authors
 router.get('/authors', (_req, res) => {
   res.json(db.listAuthors());
 });
 
-router.post('/', (req, res) => {
-  const m = req.body || {};
-  if (!m.name || !m.role || !m.initial) {
-    return res.status(400).json({ error: 'name, role and initial are required' });
-  }
-  res.status(201).json(db.createTeamMember(m));
+// Protected: create team member (admin only)
+router.post('/', authMiddleware, validateTeamMember, (req, res) => {
+  const m = req.body;
+  const created = db.createTeamMember(m);
+  res.status(201).json(created);
 });
 
 module.exports = router;

@@ -95,7 +95,7 @@ export default function CartDrawer() {
             </div>
             <button
               type="button"
-              className="w-full rounded-full bg-ink text-white text-sm font-medium py-3 hover:bg-primary transition-colors"
+              className="w-full rounded-md bg-ink text-white text-sm font-medium py-3 hover:bg-primary transition-colors"
               onClick={() => window.dispatchEvent(new CustomEvent('lg-toast', { detail: 'Checkout coming soon.' }))}
             >
               Checkout

@@ -152,7 +152,7 @@ export default function ContactPage() {
               <button
                 type="submit"
                 disabled={state === 'sending'}
-                className="w-full rounded-full bg-ink text-white text-sm font-medium py-3.5 hover:bg-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-md bg-ink text-white text-sm font-medium py-3.5 hover:bg-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {state === 'sending' ? 'Sending…' : 'Send message'}
               </button>

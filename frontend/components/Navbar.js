@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useCart } from '@/context/CartContext';
+import { api, getToken } from '@/lib/api';
 
 const BOOKS_DROP = [
   { href: '/publications', label: 'All Publications' },
@@ -34,12 +35,7 @@ function Dropdown({ label, items, open, setOpen }) {
   }, [setOpen]);
 
   return (
-    <div
-      ref={ref}
-      className={`nav-dropdown relative ${open ? 'open' : ''}`}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
+    <div ref={ref} className={`nav-dropdown relative ${open ? 'open' : ''} pb-3`}>
       <button
         type="button"
         className="flex items-center gap-1 text-sm font-medium text-ink hover:text-primary transition-colors px-1 py-2"
@@ -74,8 +70,44 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDrop, setOpenDrop] = useState(null);
   const [mobileAcc, setMobileAcc] = useState(null);
+  const [userDrop, setUserDrop] = useState(false);
+  const userRef = useRef(null);
   const { count, setDrawerOpen, hydrated } = useCart();
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const token = getToken();
+    if (token) {
+      api.getMe()
+        .then((res) => {
+          setUser(res.user);
+          setChecking(false);
+        })
+        .catch(() => {
+          setChecking(false);
+        });
+    } else {
+      setChecking(false);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    api.logout();
+    setUser(null);
+    setUserDrop(false);
+    router.push('/');
+  };
+
+  useEffect(() => {
+    function onDoc(e) {
+      if (userDrop && userRef.current && !userRef.current.contains(e.target)) setUserDrop(false);
+    }
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [userDrop]);
 
   useEffect(() => {
     function onScroll() {
@@ -110,9 +142,7 @@ export default function Navbar() {
     >
       <nav className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between gap-6">
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <span className="w-8 h-8 bg-primary text-white grid place-items-center font-bold text-sm select-none">
-            L
-          </span>
+          <img src="/website logo.png" alt="Literacy Gardeners" className="w-10 h-10 select-none" />
           <span className="leading-tight">
             <span className="block text-[15px] font-semibold tracking-tight text-ink">Literacy Gardeners</span>
             <span className="block font-mono text-[10px] tracking-[0.08em] text-ink/50 uppercase">Grow · Write · Publish</span>
@@ -138,15 +168,42 @@ export default function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <Link
-            href="/login"
-            className="text-sm font-medium text-ink hover:text-primary transition-colors"
-          >
-            Sign in
-          </Link>
+          {checking ? null : user ? (
+            <div ref={userRef} className="relative group">
+              <button
+                onClick={() => setUserDrop((v) => !v)}
+                aria-label="Account"
+                aria-haspopup="true"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-ink text-white text-xs font-bold"
+              >
+                {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+              </button>
+              {userDrop && (
+                <div className="absolute right-0 mt-2 w-48 bg-surface border border-border rounded-xl shadow-lg py-2 z-50">
+                  <div className="px-4 py-2 border-b border-border/50">
+                    <p className="text-xs font-medium text-ink">{user.name || 'Account'}</p>
+                    <p className="text-[10px] text-ink/50 truncate">{user.email}</p>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center justify-between px-4 py-2 text-sm text-error hover:bg-red-50 transition-colors"
+                  >
+                    Log out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="text-sm font-medium text-ink hover:text-primary transition-colors"
+            >
+              Sign in
+            </Link>
+          )}
           <Link
             href="/get-published"
-            className="inline-flex items-center rounded-full bg-ink text-white text-sm font-medium px-[18px] py-[10px] hover:bg-primary transition-colors"
+            className="inline-flex items-center rounded-md bg-ink text-white text-sm font-medium px-[18px] py-[10px] hover:bg-primary transition-colors"
           >
             Get Started
           </Link>
@@ -261,15 +318,24 @@ export default function Navbar() {
               </div>
             </div>
 
-            <Link href="/login" className="block py-3 text-sm font-medium border-t border-border">
-              Sign in
-            </Link>
+            {checking ? null : user ? (
+              <button
+                onClick={handleLogout}
+                className="block py-3 text-sm font-medium border-t border-border text-error"
+              >
+                Log out
+              </button>
+            ) : (
+              <Link href="/login" className="block py-3 text-sm font-medium border-t border-border">
+                Sign in
+              </Link>
+            )}
             <Link href="/get-published" className="block py-3 text-sm font-medium border-t border-border">
               Get Published
             </Link>
             <Link
               href="/get-published"
-              className="mt-2 mb-4 inline-flex w-full justify-center rounded-full bg-ink text-white text-sm font-medium px-[18px] py-[12px]"
+              className="mt-2 mb-4 inline-flex w-full justify-center rounded-md bg-ink text-white text-sm font-medium px-[18px] py-[12px]"
             >
               Get Started
             </Link>

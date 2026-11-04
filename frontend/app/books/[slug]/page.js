@@ -172,7 +172,7 @@ export default function BookDetailPage({ params }) {
               type="button"
               disabled={soldOut}
               onClick={() => addItem(book)}
-              className={`rounded-full text-sm font-medium px-[18px] py-[12px] transition-colors ${
+              className={`rounded-md text-sm font-medium px-[18px] py-[12px] transition-colors ${
                 soldOut
                   ? 'bg-muted text-ink/40 cursor-not-allowed'
                   : 'bg-ink text-white hover:bg-primary'
@@ -183,7 +183,7 @@ export default function BookDetailPage({ params }) {
             <button
               type="button"
               onClick={() => toggleWishlist(book.id)}
-              className={`rounded-full border text-sm font-medium px-[18px] py-[12px] transition-colors ${
+              className={`rounded-md border text-sm font-medium px-[18px] py-[12px] transition-colors ${
                 wished ? 'bg-primary border-primary text-white' : 'bg-surface border-border hover:border-ink'
               }`}
             >
@@ -191,7 +191,7 @@ export default function BookDetailPage({ params }) {
             </button>
             <Link
               href="/get-published"
-              className="rounded-full bg-secondary text-ink text-sm font-medium px-[18px] py-[12px] hover:bg-secondary/70 transition-colors"
+              className="rounded-md bg-secondary text-ink text-sm font-medium px-[18px] py-[12px] hover:bg-secondary/70 transition-colors"
             >
               Get Published
             </Link>
@@ -213,7 +213,7 @@ export default function BookDetailPage({ params }) {
           <button
             type="button"
             onClick={() => setShowForm((v) => !v)}
-            className="rounded-full bg-ink text-white text-sm font-medium px-[18px] py-[12px] hover:bg-primary transition-colors"
+            className="rounded-md bg-ink text-white text-sm font-medium px-[18px] py-[12px] hover:bg-primary transition-colors"
             aria-expanded={showForm}
           >
             Your Review
@@ -256,14 +256,14 @@ export default function BookDetailPage({ params }) {
             <div className="sm:col-span-2 flex flex-wrap gap-3">
               <button
                 type="submit"
-                className="rounded-full bg-ink text-white text-sm font-medium px-[18px] py-[10px] hover:bg-primary transition-colors"
+                className="rounded-md bg-ink text-white text-sm font-medium px-[18px] py-[10px] hover:bg-primary transition-colors"
               >
                 Submit review
               </button>
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="rounded-full border border-border bg-surface text-sm font-medium px-[18px] py-[10px] hover:border-ink transition-colors"
+                className="rounded-md border border-border bg-surface text-sm font-medium px-[18px] py-[10px] hover:border-ink transition-colors"
               >
                 Cancel
               </button>
@@ -325,7 +325,7 @@ function RelatedCard({ book }) {
           <button
             type="button"
             onClick={() => addItem(book)}
-            className="rounded-full bg-ink text-white text-xs font-medium px-3 py-1.5 hover:bg-primary transition-colors"
+            className="rounded-md bg-ink text-white text-xs font-medium px-3 py-1.5 hover:bg-primary transition-colors"
           >
             Add
           </button>
