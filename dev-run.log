@@ -1,0 +1,92 @@
+
+> literacy-gardeners@1.0.0 dev
+> node scripts/dev.js
+
+
+> literacy-gardeners-backend@1.0.0 dev
+> node --watch server.js
+
+
+> frontend@0.1.0 dev
+> next dev
+
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (D:\Publication\backend\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (D:\Publication\backend\server.js:63:7)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v24.12.0
+Failed running 'server.js'. Waiting for file changes before restarting...
+Restarting 'server.js'
+⚠ Port 3000 is in use by process 3068, using available port 3001 instead.
+▲ Next.js 16.4.3 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://10.229.86.75:3001
+- Environments: .env.local
+✓ Ready in 5.2s
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of D:\Publication\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * D:\Publication\frontend\package-lock.json
+
+✓ Running next.config.mjs took 99ms
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (D:\Publication\backend\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (D:\Publication\backend\server.js:63:7)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 4000
+}
+
+Node.js v24.12.0
+Failed running 'server.js'. Waiting for file changes before restarting...
+⨯ Another next dev server is already running.
+
+- Local:        http://localhost:3000
+- PID:          3068
+- Dir:          D:\Publication\frontend
+- Log:          .next\dev\logs\next-development.log
+
+You can access the existing server at http://localhost:3000,
+or run taskkill /PID 3068 /F to stop it and start a new one.
+[?25h
+[web] stopped (1) — shutting down the other process.

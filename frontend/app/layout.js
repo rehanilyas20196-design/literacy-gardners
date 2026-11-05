@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
@@ -36,10 +35,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className="min-h-full flex flex-col bg-surface text-ink">
         <CartProvider>
-          {/* Navbar reads search params for active nav state — needs a boundary */}
-          <Suspense fallback={<div className="h-16" />}>
-            <Navbar />
-          </Suspense>
+          <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
           <CartDrawer />

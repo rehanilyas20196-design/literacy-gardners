@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { api, getToken } from '@/lib/api';
@@ -26,22 +26,63 @@ const CLUB_DROP = [
 function Dropdown({ label, items, open, setOpen }) {
   const ref = useRef(null);
   const pathname = usePathname();
-  const searchString = useSearchParams().toString();
+  const closeTimer = useRef(null);
+  // The query string is read directly instead of via useSearchParams — that
+  // hook would force the whole navbar behind a Suspense fallback, leaving the
+  // production HTML with no navbar (and no working links) until hydration.
+  const [search, setSearch] = useState('');
+  const [canHover, setCanHover] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setSearch(window.location.search.replace(/^\?/, ''));
+    sync();
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, [pathname]);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const sync = () => setCanHover(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   useEffect(() => {
     function onDoc(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      // Only close if THIS dropdown is the open one. Without the `open` guard a
+      // closed dropdown would still call setOpen(false) on every mousedown,
+      // which clears the shared openDrop and kills the menu the user is
+      // clicking inside — the link turns visibility:hidden before mouseup and
+      // the click lands on the page behind it.
+      if (open && ref.current && !ref.current.contains(e.target)) setOpen(false);
     }
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
-  }, [setOpen]);
+  }, [setOpen, open]);
+
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
+
+  const openNow = () => {
+    clearTimeout(closeTimer.current);
+    setOpen(true);
+  };
+  const closeSoon = () => {
+    clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setOpen(false), 140);
+  };
 
   return (
-    <div ref={ref} className={`nav-dropdown relative ${open ? 'open' : ''} pb-3`}>
+    <div
+      ref={ref}
+      className={`nav-dropdown relative ${open ? 'open' : ''}`}
+      onMouseEnter={canHover ? openNow : undefined}
+      onMouseLeave={canHover ? closeSoon : undefined}
+    >
       <button
         type="button"
         className="flex items-center gap-1 text-sm font-medium text-ink hover:text-primary transition-colors px-1 py-2"
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpen(canHover ? true : !open)}
         aria-expanded={open}
         aria-haspopup="true"
       >
@@ -54,7 +95,7 @@ function Dropdown({ label, items, open, setOpen }) {
         {items.map((it) => {
           const [hrefPath, hrefQuery = ''] = it.href.split('?');
           const active =
-            pathname === hrefPath && (hrefQuery ? hrefQuery === searchString : searchString === '');
+            pathname === hrefPath && (hrefQuery ? hrefQuery === search : search === '');
           return (
             <Link
               key={it.href}
@@ -84,6 +125,11 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState(null);
+
+  // A dropdown may only open itself or clear its own key: a stale close
+  // (outside mousedown, hover-leave timer) must never close another menu.
+  const makeSetter = (key) => (v) =>
+    setOpenDrop((cur) => (v ? key : cur === key ? null : cur));
 
   useEffect(() => {
     // Only async callbacks touch state here — a stale token resolves to a
@@ -174,13 +220,13 @@ export default function Navbar() {
             label="Publication"
             items={BOOKS_DROP}
             open={openDrop === 'books'}
-            setOpen={(v) => setOpenDrop(v ? 'books' : null)}
+            setOpen={makeSetter('books')}
           />
           <Dropdown
             label="Club"
             items={CLUB_DROP}
             open={openDrop === 'club'}
-            setOpen={(v) => setOpenDrop(v ? 'club' : null)}
+            setOpen={makeSetter('club')}
           />
           <Link href="/get-published" className="text-sm font-medium text-ink hover:text-primary transition-colors">
             Get Published
