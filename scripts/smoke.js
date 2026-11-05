@@ -330,8 +330,9 @@ async function main() {
   console.log('\nSecurity headers');
   const corsRes = await call('GET', '/api/books', { headers: { Origin: 'https://evil.example' }, raw: true });
   check('blocked origin → no CORS header, no 500', corsRes.status === 200 && !corsRes.headers.get('access-control-allow-origin'), `status=${corsRes.status} acao=${corsRes.headers.get('access-control-allow-origin')}`);
-  const okCors = await call('GET', '/api/books', { headers: { Origin: 'http://localhost:3000' }, raw: true });
-  check('allowed origin gets CORS', okCors.headers.get('access-control-allow-origin') === 'http://localhost:3000', `acao=${okCors.headers.get('access-control-allow-origin')}`);
+  const allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
+  const okCors = await call('GET', '/api/books', { headers: { Origin: allowedOrigin }, raw: true });
+  check('allowed origin gets CORS', okCors.headers.get('access-control-allow-origin') === allowedOrigin, `acao=${okCors.headers.get('access-control-allow-origin')}`);
 
   // -- Logout-all invalidates tokens --
   console.log('\nToken invalidation');
