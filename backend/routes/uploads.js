@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const { Router } = require('express');
 const multer = require('multer');
 const { uploadBuffer } = require('../utils/storage');
+const { assertSafeUpload } = require('../utils/uploadGuard');
 
 const router = Router();
 
@@ -60,6 +61,8 @@ router.post('/', (req, res) => {
     try {
       const kind = String(req.query.kind || req.body?.kind || 'cover');
       const isManuscript = kind === 'manuscript';
+      // Verify the bytes, not the client-declared extension/MIME type
+      assertSafeUpload(req.file, isManuscript ? 'manuscript' : 'image');
       const bucket = isManuscript ? 'manuscripts' : 'uploads';
       const subdir = isManuscript ? 'manuscripts' : 'covers';
       const unique = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeBase(req.file.originalname)}`;

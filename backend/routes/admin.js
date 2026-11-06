@@ -8,6 +8,7 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { validateBook, validateStatus } = require('../middleware/validate');
 const { listUsers, getUserPublic, getUserById } = require('../utils/auth');
 const { uploadBuffer, createSignedReadUrl, publicUrlFor } = require('../utils/storage');
+const { assertSafeUpload } = require('../utils/uploadGuard');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -384,6 +385,9 @@ async function pushBookImages(req) {
   const files = req.files || {};
   let image;
   let backImage;
+  // Reject files whose bytes do not match an allowed image type
+  if (files.image?.[0]) assertSafeUpload(files.image[0], 'image');
+  if (files.back_image?.[0]) assertSafeUpload(files.back_image[0], 'image');
   if (files.image?.[0]) {
     const f = files.image[0];
     const objectPath = `books/${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${path

@@ -11,16 +11,31 @@ async function getUserByEmail(email) {
   return data;
 }
 
+// Lookup by name first, then email. Each value goes through a parameterised `.eq()`
+// filter — never interpolated into a PostgREST `or(...)` string, which would let a
+// crafted login value inject extra filters.
 async function getUserByNameOrEmail(identifier) {
+  const value = String(identifier || '').trim();
+  if (!value || value.length > 254) return null;
+
   const db = getDb();
   const { data, error } = await db
     .from('users')
     .select('*')
-    .or(`email.eq.${identifier},name.eq.${identifier}`)
+    .eq('name', value)
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data;
+  if (data) return data;
+
+  const { data: byEmail, error: emailError } = await db
+    .from('users')
+    .select('*')
+    .eq('email', value.toLowerCase())
+    .limit(1)
+    .maybeSingle();
+  if (emailError) throw emailError;
+  return byEmail;
 }
 
 async function getUserById(id) {

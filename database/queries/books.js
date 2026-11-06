@@ -19,8 +19,14 @@ function applySort(rows, sort) {
   return [...rows].sort(cmp);
 }
 
+// Strip every character that carries meaning inside a PostgREST `or()` filter
+// (`, . ( ) " \` plus LIKE wildcards) so the search term cannot add conditions.
 function safeLike(q) {
-  return String(q).replace(/[,%_()\\]/g, ' ').replace(/\s+/g, ' ').trim();
+  return String(q || '')
+    .replace(/[,%_()".\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 100);
 }
 
 async function listBooks({ category = null, sort = 'newest', limit = 60 } = {}) {
