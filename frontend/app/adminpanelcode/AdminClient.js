@@ -59,7 +59,7 @@ const TITLES = {
   leads: ['Messages', 'Contact form submissions'],
   newsletter: ['Newsletter', 'Subscribers to your mailing list'],
   reviews: ['Reviews', 'Moderate reader reviews before they appear on book pages'],
-  orders: ['Orders', 'Checkout orders — cash on delivery and bank transfer'],
+  orders: ['Orders', 'Checkout orders — cash on delivery'],
   applications: ['Author applications', 'Approve authors and review their payout details'],
 };
 

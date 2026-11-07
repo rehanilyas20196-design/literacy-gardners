@@ -139,7 +139,7 @@ const validateOrder = [
   body('subtotal').isNumeric().withMessage('subtotal must be a number'),
   body('shipping').isNumeric().withMessage('shipping must be a number'),
   body('total').isNumeric().withMessage('total must be a number'),
-  body('payment_method').isIn(['cod', 'bank_transfer']).withMessage('invalid payment method'),
+  body('payment_method').isIn(['cod']).withMessage('invalid payment method'),
   handleValidationErrors,
 ];
 

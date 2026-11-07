@@ -12,7 +12,7 @@ function shippingFee() {
   return Number.isFinite(raw) && raw >= 0 ? raw : 0;
 }
 
-// Public (optional login): create an order — COD or bank transfer.
+// Public (optional login): create an order — cash on delivery only.
 // Prices are ALWAYS recomputed server-side from the database; client totals are ignored.
 router.post(
   '/',
@@ -58,7 +58,7 @@ router.post(
       subtotal: Math.round(subtotal * 100) / 100,
       shipping,
       total: Math.round((subtotal + shipping) * 100) / 100,
-      payment_method: req.body.payment_method,
+      payment_method: 'cod',
     });
 
     res.status(201).json({ ok: true, order });

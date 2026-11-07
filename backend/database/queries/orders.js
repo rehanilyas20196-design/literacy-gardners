@@ -13,7 +13,7 @@ async function createOrder(order) {
     subtotal: order.subtotal ?? 0,
     shipping: order.shipping ?? 0,
     total: order.total ?? 0,
-    payment_method: order.payment_method === 'bank_transfer' ? 'bank_transfer' : 'cod',
+    payment_method: 'cod',
     status: 'pending',
   };
   const { data, error } = await db.from('orders').insert(payload).select().single();

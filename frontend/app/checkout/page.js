@@ -107,19 +107,9 @@ export default function CheckoutPage() {
           </div>
           <div className="flex justify-between">
             <span className="text-ink/50">Payment</span>
-            <span className="font-medium uppercase">{placed.payment_method === 'bank_transfer' ? 'Bank transfer' : 'Cash on delivery'}</span>
+            <span className="font-medium uppercase">Cash on delivery</span>
           </div>
         </div>
-        {placed.payment_method === 'bank_transfer' && (
-          <div className="mt-4 card p-6 text-left text-sm text-ink/70 space-y-2">
-            <p className="font-semibold text-ink">Bank transfer instructions</p>
-            <p>
-              Transfer {formatPKR(placed.total)} to the Literacy Gardeners account mentioned in your
-              confirmation email, using your order ID ({placed.id.slice(0, 8)}) as the reference.
-              We&apos;ll ship once the payment lands.
-            </p>
-          </div>
-        )}
         <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
           <Link
             href="/publications"
@@ -224,11 +214,6 @@ export default function CheckoutPage() {
                 id: 'cod',
                 title: 'Cash on delivery',
                 note: 'Pay when your books arrive. Available nationwide.',
-              },
-              {
-                id: 'bank_transfer',
-                title: 'Bank transfer',
-                note: 'Account details arrive with your order confirmation email.',
               },
             ].map((opt) => (
               <label key={opt.id} className="cursor-pointer block">

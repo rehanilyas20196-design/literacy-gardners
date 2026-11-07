@@ -148,7 +148,7 @@ export default function OrdersTab({ orders, setOrders, refreshStats }) {
       {rows.length === 0 ? (
         <EmptyState
           title={orders.length === 0 ? 'No orders yet' : 'No orders match your filters'}
-          hint="Checkout orders (COD or bank transfer) appear here."
+          hint="Checkout orders (cash on delivery) appear here."
         />
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
