@@ -1,4 +1,4 @@
-const { getDb } = require('../../database/connection');
+const { getDb } = require('../database/connection');
 
 const PUBLIC_BUCKET = 'uploads';
 

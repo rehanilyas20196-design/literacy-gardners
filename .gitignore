@@ -11,8 +11,8 @@ coverage/
 
 .vercel/
 
-database/literacy.db
-database/literacy.db-shm
-database/literacy.db-wal
+backend/database/literacy.db
+backend/database/literacy.db-shm
+backend/database/literacy.db-wal
 .vercel
 .env*

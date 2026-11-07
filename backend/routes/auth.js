@@ -9,9 +9,9 @@ const {
   validateResetPassword,
   validateRegisterAuthor,
 } = require('../middleware/validate');
-const { bumpTokenVersion, updateUserPassword } = require('../../database/queries/users');
-const { createResetToken, consumeResetToken } = require('../../database/queries/passwordResets');
-const { createAuthorApplication } = require('../../database/queries/authorProfiles');
+const { bumpTokenVersion, updateUserPassword } = require('../database/queries/users');
+const { createResetToken, consumeResetToken } = require('../database/queries/passwordResets');
+const { createAuthorApplication } = require('../database/queries/authorProfiles');
 const { sendPasswordReset } = require('../utils/email');
 
 const router = Router();
@@ -100,7 +100,7 @@ router.post('/register-author', validateRegisterAuthor, async (req, res) => {
 
 router.post('/forgot-password', validateForgotPassword, async (req, res) => {
   try {
-    const { getUserByEmail } = require('../../database/queries/users');
+    const { getUserByEmail } = require('../database/queries/users');
     const user = await getUserByEmail(req.body.email);
     if (user) {
       const token = crypto.randomBytes(32).toString('hex');

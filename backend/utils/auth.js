@@ -6,7 +6,7 @@ const {
   createUser: insertUser,
   listUsers: queryUsers,
   isUniqueError,
-} = require('../../database/queries/users');
+} = require('../database/queries/users');
 
 function hashPassword(password) {
   return bcrypt.hash(password, 12);

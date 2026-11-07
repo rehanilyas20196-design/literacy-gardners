@@ -4,7 +4,7 @@ const { Router } = require('express');
 const multer = require('multer');
 const { uploadBuffer, removeObjects, publicUrlFor, PUBLIC_BUCKET } = require('../utils/storage');
 const { assertSafeUpload } = require('../utils/uploadGuard');
-const { getDb } = require('../../database/connection');
+const { getDb } = require('../database/connection');
 
 const router = Router();
 

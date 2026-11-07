@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "seed": "node -e \"console.log('Seed data lives in database/supabase_schema.sql — run it in the Supabase SQL Editor')\""
+    "seed": "node -e \"console.log('Seed data lives in backend/database/supabase_schema.sql — run it in the Supabase SQL Editor')\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.0",

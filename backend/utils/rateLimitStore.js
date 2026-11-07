@@ -1,4 +1,4 @@
-const { getDb } = require('../../database/connection');
+const { getDb } = require('../database/connection');
 
 // In-memory counter used when the rate_limit_hit() RPC is unavailable (SQL not
 // applied yet, or Postgres unreachable). Still correct for a single process —
@@ -33,7 +33,7 @@ function makeLocalStore(windowMs) {
 // Store that counts in Postgres so the limit holds across serverless instances.
 // Vercel runs many parallel copies of this process: an in-memory counter is
 // per-instance, so N instances would allow N x the intended attempts.
-// Requires the rate_limit_hit() RPC from database/supabase_schema.sql; falls
+// Requires the rate_limit_hit() RPC from backend/database/supabase_schema.sql; falls
 // back to in-memory counting (and retries every minute) until it exists.
 class SharedRateLimitStore {
   constructor({ windowMs, name = 'rl' }) {
@@ -61,7 +61,7 @@ class SharedRateLimitStore {
         this.retryAt = Date.now() + 60 * 1000;
         console.warn(
           `rate-limit store "${this.name}": using in-memory fallback (${err.message}). ` +
-            'Run the rate_limits SQL from database/supabase_schema.sql to share counts across instances.'
+            'Run the rate_limits SQL from backend/database/supabase_schema.sql to share counts across instances.'
         );
       }
     }

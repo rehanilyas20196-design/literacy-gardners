@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const db = require('../../database');
+const db = require('../database');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const {
   validateBook,
