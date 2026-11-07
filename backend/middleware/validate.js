@@ -27,7 +27,12 @@ const validateBook = [
   body('category').trim().notEmpty().withMessage('category is required').isLength({ max: 50 }).withMessage('category too long'),
   body('description').optional().trim().isLength({ max: 2000 }).withMessage('description too long'),
   body('price').optional().isNumeric().withMessage('price must be a number'),
-  body('sale_price').optional({ nullable: true }).isNumeric().withMessage('sale_price must be a number'),
+  // '' means "no sale price" (the admin form sends an empty string)
+  body('sale_price')
+    .optional({ nullable: true })
+    .if((value) => value !== '')
+    .isNumeric()
+    .withMessage('sale_price must be a number'),
   body('pages').optional().isInt({ min: 1 }).withMessage('pages must be a positive integer'),
   body('rating').optional().isFloat({ min: 0, max: 5 }).withMessage('rating must be between 0 and 5'),
   body('image').optional({ nullable: true }).isString().isLength({ max: 500 }).withMessage('image too long'),

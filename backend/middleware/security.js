@@ -3,8 +3,9 @@ const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const cors = require('cors');
 const express = require('express');
+const { SharedRateLimitStore } = require('../utils/rateLimitStore');
 
-const DEFAULT_WEB_ORIGIN = 'http://localhost:3000';
+const DEFAULT_WEB_ORIGIN = 'http://localhost:3100';
 
 function splitList(value) {
   return String(value || '')
@@ -24,10 +25,41 @@ function configuredOrigins() {
     origins.push(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
   }
   if (process.env.NODE_ENV !== 'production') {
-    origins.push(DEFAULT_WEB_ORIGIN, 'http://127.0.0.1:3000', 'http://localhost:4000');
+    origins.push(DEFAULT_WEB_ORIGIN, 'http://127.0.0.1:3100', 'http://localhost:4000');
   }
 
   return [...new Set(origins.map((origin) => origin.replace(/\/+$/, '')))];
+}
+
+// Origins may contain a wildcard label (https://my-app-git-*.vercel.app) so
+// every Vercel preview deployment is accepted without enumerating branch URLs.
+// `*` matches exactly one DNS label, so a broad pattern must be written
+// deliberately — `https://*.vercel.app` alone would match anyone's project.
+function originMatches(pattern, origin) {
+  if (pattern === '*') return true;
+  if (pattern === origin) return true;
+  if (!pattern.includes('*')) return false;
+  const escaped = pattern
+    .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '[^.]+');
+  return new RegExp(`^${escaped}$`, 'i').test(origin);
+}
+
+function originOf(urlLike) {
+  try {
+    return new URL(String(urlLike).replace(/\/+$/, '')).origin;
+  } catch {
+    return null;
+  }
+}
+
+const ORIGIN_PATTERNS = configuredOrigins();
+
+// True when a request's Origin/Referer matches a configured pattern.
+function originAllowed(urlLike) {
+  const origin = originOf(urlLike);
+  if (!origin) return false;
+  return ORIGIN_PATTERNS.some((pattern) => originMatches(pattern, origin));
 }
 
 function hostOf(urlLike) {
@@ -37,8 +69,6 @@ function hostOf(urlLike) {
     return null;
   }
 }
-
-const ALLOWED_HOSTS = new Set(configuredOrigins().map(hostOf).filter(Boolean));
 const WEB_BASE = process.env.WEB_BASE_URL || DEFAULT_WEB_ORIGIN;
 
 // ---- HTTPS ----
@@ -81,7 +111,7 @@ function csrfProtection(req, res, next) {
     .filter(Boolean)
     .map((host) => String(host).toLowerCase());
 
-  if (ALLOWED_HOSTS.has(sourceHost) || ownHosts.includes(sourceHost)) {
+  if (originAllowed(origin || referer) || ownHosts.includes(sourceHost)) {
     return next();
   }
   return res.status(403).json({ error: 'Invalid request origin' });
@@ -110,10 +140,12 @@ const generalLimiter = makeLimiter({
 // Factory: one limiter INSTANCE per mount. Sharing a single instance across
 // /api/auth, /api/leads, /api/newsletter and /api/uploads would put a signup, a
 // contact form and a file upload against the same 20/15min budget.
-function makeStrictLimiter() {
+// `limit` raises the budget for mounts where one logical action costs several
+// requests (uploads: sign + confirm per file — a 3-file quote is 6 requests).
+function makeStrictLimiter(limit = 20) {
   const limiter = makeLimiter({
     windowMs: 15 * 60 * 1000,
-    limit: 20,
+    limit,
     message: 'Too many attempts, please try again later.',
   });
   return (req, res, next) =>
@@ -128,11 +160,15 @@ const writeLimiter = makeLimiter({
 });
 
 // Login brute-force limiter, keyed by client IP *and* the attempted account.
+// Counted in Postgres (SharedRateLimitStore) so the 10/15min budget is global
+// across serverless instances, not per-instance.
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: LOGIN_WINDOW_MS,
   limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  store: new SharedRateLimitStore({ windowMs: LOGIN_WINDOW_MS, name: 'login' }),
   message: { error: 'Too many login attempts, please try again later.' },
   keyGenerator: (req) => {
     const ip = ipKeyGenerator(req.ip || req.socket?.remoteAddress || 'unknown');
@@ -225,10 +261,7 @@ function securityMiddleware(app) {
     cors({
       origin: (origin, callback) => {
         if (!origin) return callback(null, true);
-        const allowed = configuredOrigins();
-        if (allowed.includes('*') || allowed.includes(origin.replace(/\/+$/, ''))) {
-          return callback(null, true);
-        }
+        if (originAllowed(origin)) return callback(null, true);
         // Blocked origin: respond without CORS headers instead of erroring (500)
         return callback(null, false);
       },
@@ -265,7 +298,7 @@ function securityMiddleware(app) {
   app.use('/api/team', makeStrictLimiter());
   app.use('/api/leads', makeStrictLimiter());
   app.use('/api/newsletter', makeStrictLimiter());
-  app.use('/api/uploads', makeStrictLimiter());
+  app.use('/api/uploads', makeStrictLimiter(40));
   app.use('/api/quotes', writeLimiter);
 
   // Brute-force protection keyed by IP *and* the account being attempted, so one

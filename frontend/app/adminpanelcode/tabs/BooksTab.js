@@ -69,31 +69,33 @@ function toFormState(book) {
   };
 }
 
-function buildFormData(form, frontFile, backFile, isEdit) {
-  const fd = new FormData();
-  fd.append('title', form.title);
-  if (!isEdit && form.slug) fd.append('slug', form.slug);
-  fd.append('author_name', form.author_name);
-  if (form.author_id) fd.append('author_id', form.author_id);
-  fd.append('category', form.category);
-  fd.append('description', form.description);
-  fd.append('cover_class', form.cover_class);
-  fd.append('ornament', form.ornament);
-  fd.append('pages', form.pages);
-  fd.append('rating', form.rating);
-  fd.append('year', form.year);
-  fd.append('copies_sold', form.copies_sold);
-  fd.append('price', form.price);
-  fd.append('sale_price', form.sale_price || '');
-  fd.append('stock_status', form.stock_status);
-  fd.append('badge', form.badge || '');
-  fd.append('is_best_seller', form.is_best_seller);
-  if (form.best_seller_rank) fd.append('best_seller_rank', form.best_seller_rank);
-  fd.append('is_published', form.is_published);
-  fd.append('template', form.template);
-  if (frontFile) fd.append('image', frontFile);
-  if (backFile) fd.append('back_image', backFile);
-  return fd;
+function buildPayload(form, images, isEdit) {
+  const data = {
+    title: form.title,
+    author_name: form.author_name,
+    category: form.category,
+    description: form.description,
+    cover_class: form.cover_class,
+    ornament: form.ornament,
+    pages: form.pages,
+    rating: form.rating,
+    year: form.year,
+    copies_sold: form.copies_sold,
+    price: form.price,
+    sale_price: form.sale_price || '',
+    stock_status: form.stock_status,
+    badge: form.badge || '',
+    is_best_seller: form.is_best_seller,
+    is_published: form.is_published,
+    template: form.template,
+  };
+  if (!isEdit && form.slug) data.slug = form.slug;
+  if (form.author_id) data.author_id = form.author_id;
+  if (form.best_seller_rank) data.best_seller_rank = form.best_seller_rank;
+  // Only send images that were just uploaded; omitting them keeps the stored ones.
+  if (images.image) data.image = images.image;
+  if (images.backImage) data.back_image = images.backImage;
+  return data;
 }
 
 export default function BooksTab({ books, setBooks, refreshStats, intent, clearIntent }) {
@@ -177,15 +179,20 @@ export default function BooksTab({ books, setBooks, refreshStats, intent, clearI
     setSaving(true);
     setFormError('');
     try {
-      const fd = buildFormData(form, frontFile, backFile, !!editing);
+      // Covers go straight to Supabase via signed URL (no 4.5MB Vercel body cap)
+      let image;
+      let backImage;
+      if (frontFile) image = (await api.uploadFile(frontFile, 'cover')).url;
+      if (backFile) backImage = (await api.uploadFile(backFile, 'cover')).url;
+      const payload = buildPayload(form, { image, backImage }, !!editing);
       let updated;
       if (editing) {
-        const res = await api.updateAdminBookForm(editing.id, fd);
+        const res = await api.updateAdminBook(editing.id, payload);
         updated = res.book || { ...editing, ...form };
         setBooks((prev) => prev.map((b) => (b.id === editing.id ? { ...b, ...updated } : b)));
         toast('Book updated.');
       } else {
-        const res = await api.createAdminBookForm(fd);
+        const res = await api.createAdminBook(payload);
         updated = res.book || res;
         setBooks((prev) => [updated, ...prev]);
         toast('Book added.');

@@ -362,5 +362,54 @@ insert into public.books (
 on conflict (slug) do nothing;
 
 -- ============================================================
+-- LOGIN RATE LIMITING (shared across serverless instances)
+-- Vercel runs many parallel copies of the API, so an in-memory
+-- counter is per-instance. rate_limit_hit() counts in Postgres
+-- instead; the backend falls back to memory until this exists.
+-- ============================================================
+create table if not exists public.rate_limits (
+  key text primary key,
+  count integer not null default 1,
+  window_start timestamptz not null default now()
+);
+
+-- Keys contain client IPs + attempted emails: no policies => only the
+-- SECURITY DEFINER function below (and the service role) can read them.
+alter table public.rate_limits enable row level security;
+
+create or replace function public.rate_limit_hit(p_key text, p_window_seconds integer)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_row public.rate_limits%rowtype;
+  v_now timestamptz := now();
+  v_window integer := least(greatest(coalesce(p_window_seconds, 900), 10), 86400);
+begin
+  insert into public.rate_limits as rl (key, count, window_start)
+  values (left(p_key, 300), 1, v_now)
+  on conflict (key) do update set
+    count = case when rl.window_start <= v_now - make_interval(secs => v_window)
+                 then 1 else rl.count + 1 end,
+    window_start = case when rl.window_start <= v_now - make_interval(secs => v_window)
+                        then v_now else rl.window_start end
+  returning rl.* into v_row;
+
+  -- table only holds login keys; drop rows whose window closed long ago
+  delete from public.rate_limits where window_start < v_now - interval '1 day';
+
+  return jsonb_build_object(
+    'count', v_row.count,
+    'reset_at', v_row.window_start + make_interval(secs => v_window)
+  );
+end;
+$$;
+
+revoke execute on function public.rate_limit_hit(text, integer) from public, anon, authenticated;
+grant execute on function public.rate_limit_hit(text, integer) to service_role;
+
+-- ============================================================
 -- END
 -- ============================================================

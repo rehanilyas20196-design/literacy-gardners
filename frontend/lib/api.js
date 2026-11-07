@@ -134,11 +134,39 @@ export const api = {
   // Publishing request (Get Published)
   submitQuote: (data) => request('/quotes', { method: 'POST', body: JSON.stringify(data) }),
 
-  // File uploads → Supabase Storage
-  uploadFile: (file, kind = 'cover') => {
-    const fd = new FormData();
-    fd.append('file', file);
-    return requestForm(`/uploads?kind=${encodeURIComponent(kind)}`, fd);
+  // File uploads → Supabase Storage. The browser PUTs the bytes straight to
+  // Supabase with a signed URL, so files never pass through the API (Vercel
+  // caps request bodies at ~4.5MB; manuscripts are allowed up to 25MB).
+  uploadFile: async (file, kind = 'cover') => {
+    const sign = await request('/uploads/sign', {
+      method: 'POST',
+      body: JSON.stringify({ kind, filename: file.name }),
+    });
+    const put = await fetch(sign.signedUrl, {
+      method: 'PUT',
+      headers: {
+        'content-type': file.type || 'application/octet-stream',
+        'x-upsert': 'false',
+        'cache-control': 'max-age=3600',
+      },
+      body: file,
+    });
+    if (!put.ok) {
+      let message = `Upload failed (${put.status})`;
+      try {
+        const body = await put.json();
+        message = body.message || body.error || message;
+      } catch {
+        /* response was not JSON */
+      }
+      const err = new Error(message);
+      err.status = put.status;
+      throw err;
+    }
+    return request('/uploads/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ kind, filename: file.name, bucket: sign.bucket, path: sign.path }),
+    });
   },
 
   // Checkout
