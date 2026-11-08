@@ -177,6 +177,7 @@ export default function OrdersTab({ orders, setOrders, refreshStats }) {
                   <td className="px-4 py-3.5">
                     <div className="text-sm font-medium text-ink">{o.name}</div>
                     <div className="text-xs text-ink/50">{o.email}</div>
+                    <div className="text-xs text-ink/45">{o.phone || '—'}</div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3.5 text-sm text-ink/70">
                     {itemCount(o)} book{itemCount(o) === 1 ? '' : 's'}

@@ -129,7 +129,7 @@ const validateReview = [
 const validateOrder = [
   body('name').trim().notEmpty().withMessage('name is required').isLength({ max: 100 }),
   body('email').trim().notEmpty().withMessage('email is required').isEmail().withMessage('invalid email').normalizeEmail(),
-  body('phone').optional({ nullable: true }).trim().isLength({ max: 20 }).withMessage('phone too long'),
+  body('phone').trim().notEmpty().withMessage('phone is required').isLength({ max: 20 }).withMessage('phone too long'),
   body('address').trim().notEmpty().withMessage('address is required').isLength({ max: 500 }).withMessage('address too long'),
   body('notes').optional({ nullable: true }).trim().isLength({ max: 2000 }).withMessage('notes too long'),
   body('items').isArray({ min: 1 }).withMessage('items must be a non-empty array'),

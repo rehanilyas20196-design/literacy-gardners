@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { api, getToken } from '@/lib/api';
 import { formatPKR } from '@/lib/covers';
+import { buildOrderWhatsAppMessage, buildWhatsAppUrl } from '@/lib/whatsapp';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -53,6 +54,7 @@ export default function CheckoutPage() {
     setError('');
     if (!form.name.trim()) return setError('Please enter your name.');
     if (!form.email.trim() || !form.email.includes('@')) return setError('Please enter a valid email.');
+    if (!form.phone.trim()) return setError('Please enter your phone number.');
     if (!form.address.trim()) return setError('Please enter a delivery address.');
     if (!items.length) return setError('Your cart is empty.');
     setBusy(true);
@@ -69,9 +71,13 @@ export default function CheckoutPage() {
         total,
         payment_method: form.payment,
       });
+      const saved = order.order;
       clearCart();
-      setPlaced(order.order);
+      setPlaced(saved);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Order is saved first; only now open WhatsApp (Click-to-Chat, customer presses Send).
+      const waUrl = buildWhatsAppUrl(buildOrderWhatsAppMessage(saved));
+      if (waUrl) window.location.href = waUrl;
     } catch (err) {
       setError(err.message || 'Could not place the order');
     } finally {
@@ -175,12 +181,14 @@ export default function CheckoutPage() {
               </label>
             </div>
             <label className="block">
-              <span className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink/50">Phone (optional)</span>
+              <span className="font-mono text-[11px] tracking-[0.08em] uppercase text-ink/50">Phone *</span>
               <input
                 type="tel"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                required
                 autoComplete="tel"
+                placeholder="03XX XXXXXXX"
                 className="mt-1.5 w-full rounded-full border border-border bg-surface px-[18px] py-[11px] text-sm outline-none focus:border-ink transition-colors"
               />
             </label>
